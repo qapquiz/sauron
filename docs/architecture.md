@@ -22,16 +22,15 @@ nothing yet. Everything else lands in phases 2 through 6.
 | Kotlin | 2.2.10 | built into AGP 9.4.1 |
 | Gradle | 9.8.1 | current release |
 | JDK | 17 | required by the Android toolchain |
-| compileSdk | 36 | the current Android API level |
+| compileSdk | 37 | required by the Compose BOM's ui 1.12.1 AAR metadata |
 | minSdk | 26 | covers more than 95 percent of devices in Thailand, more below |
 | Jetpack Compose with Material 3 | compiler plugin 2.2.10 | declarative screens in Kotlin, current Material components |
 | Room | 2.8.5 | on-device SQL storage, schema exported to app/schemas |
 | KSP | 2.3.12 | runs Room's annotation processing at build time |
 
-minSdk is 26. From that level the app gets notification access and the current
-AndroidX stack, with compatibility code for only a few older API levels. The
-floor covers more than 95 percent of Thai devices, so the trade favors simpler
-code over reach.
+minSdk is 26. From that level the app gets notification access and the
+current AndroidX stack, and API 26 is Android 8.0 from 2017, so the
+compatibility code for older devices stays small.
 
 kotlinx.serialization, WorkManager, and navigation are not in the build yet.
 Each lands in the phase that first needs it, so the build carries no unused
