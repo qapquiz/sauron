@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Sauron" parent="android:Theme.Material.NoActionBar" />
+</resources>
