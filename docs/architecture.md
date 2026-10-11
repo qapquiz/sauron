@@ -27,6 +27,7 @@ nothing yet. Everything else lands in phases 2 through 6.
 | Jetpack Compose with Material 3 | compiler plugin 2.2.10 | declarative screens in Kotlin, current Material components |
 | Room | 2.8.5 | on-device SQL storage, schema exported to app/schemas |
 | KSP | 2.3.12 | runs Room's annotation processing at build time |
+| Gemma 4 E2B | E2B-it QAT, LiteRT-LM | on-device extraction and categorization, Apache 2.0, more below |
 
 minSdk is 26. From that level the app gets notification access and the
 current AndroidX stack, and API 26 is Android 8.0 from 2017, so the
@@ -35,6 +36,15 @@ compatibility code for older devices stays small.
 kotlinx.serialization, WorkManager, and navigation are not in the build yet.
 Each lands in the phase that first needs it, so the build carries no unused
 dependency.
+
+The model plan splits reading from understanding. ML Kit text recognition
+reads the slip, because it is fast, deterministic, and works offline. Gemma 4
+E2B understands what was read. It runs on device through the official
+LiteRT-LM build (the GPU variant is a 2.01 GB download, measured from the
+litert-community release), it ships under Apache 2.0, and it keeps financial
+data off any server. The parser handles slips whose text is already
+structured, and the model handles the messy tail, so a slow path never runs
+when a fast one is certain.
 
 An AppContainer on the Application class wires dependencies by hand, and each
 screen takes what it needs from the container. Hilt was rejected because one
@@ -77,12 +87,18 @@ A phase is done when its check passes on a device, not when the code compiles.
   image yields parsed text lines.
 
 - **Phase 4, extraction.** The parser turns recognized text into an amount, a
-  merchant, and a datetime, and writes an ExpenseEntity row per slip. The check
-  is that a golden set of slips maps to the expected expenses.
+  merchant, and a datetime, and writes an ExpenseEntity row per slip. Slips
+  the parser cannot confidently read go to Gemma 4 E2B as a fallback, with a
+  JSON contract for the fields. The check is that a golden set of slips maps
+  to the expected expenses, with the fallback rate counted.
 
 - **Phase 5, categorization.** A rule table matches merchant keywords first,
-  and LLM assistance comes later. The check is that the golden set categorizes
-  against a measured accuracy target.
+  and Gemma 4 E2B categorizes what the rules miss. Thai quality of small
+  on-device models is unmeasured, so the golden set decides whether E2B
+  clears the accuracy target, or the app steps up to E4B (a 2.97 GB GPU
+  build) or few-shot prompting before anything bigger is considered. The
+  check is that the golden set categorizes against a measured accuracy
+  target.
 
 - **Phase 6, reporting.** The main screen shows monthly totals per category.
   The check is that the on-screen totals match a SQL query over seeded data.
