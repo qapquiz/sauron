@@ -1,0 +1,18 @@
+package dev.fireforge.sauron.data
+
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import java.time.Instant
+
+@Entity(
+    tableName = "captures",
+    indices = [Index(value = ["imageUri"], unique = true)],
+)
+data class CaptureEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val imageUri: String,
+    val takenAt: Instant,
+    val ocrText: String,
+    val detectedAt: Instant,
+)
