@@ -46,6 +46,12 @@ data off any server. The parser handles slips whose text is already
 structured, and the model handles the messy tail, so a slow path never runs
 when a fast one is certain.
 
+Google's Gemini API also serves Gemma 4 free of charge, with no paid tier,
+but free tier requests may be used to improve Google's products. Sauron never
+ships an API key and never sends slip data anywhere by default. The API is an
+opt-in fallback only: a user who accepts that trade pastes their own AI
+Studio key, and slip text then leaves the phone for categorization.
+
 An AppContainer on the Application class wires dependencies by hand, and each
 screen takes what it needs from the container. Hilt was rejected because one
 class consumes the container, so code generation would add build time without
