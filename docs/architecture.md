@@ -38,9 +38,12 @@ kotlinx.serialization, WorkManager, and navigation are not in the build yet.
 Each lands in the phase that first needs it, so the build carries no unused
 dependency.
 
-The model plan splits reading from understanding. ML Kit text recognition
-reads the slip, because it is fast, deterministic, and works offline. Gemma 4
-E2B understands what was read. It runs on device through the official
+The model plan splits reading from understanding. Tesseract reads the slip,
+because it is fast, deterministic, and works offline. Google's ML Kit ships
+no Thai text recognizer at all, a fact verified against its maven group
+index, so the reading engine is Tesseract4Android with the fast Thai and
+English models bundled in the app, about 5 MB combined. Gemma 4 E2B
+understands what was read. It runs on device through the official
 LiteRT-LM build (the GPU variant is a 2.01 GB download, measured from the
 litert-community release), it ships under Apache 2.0, and it keeps financial
 data off any server. The parser handles slips whose text is already
@@ -84,15 +87,19 @@ a readable diff, and tests can verify a future migration against the exports.
 A phase is done when its check passes on a device, not when the code compiles.
 
 - **Phase 2, slip ingestion.** A WorkManager job watches new images in the
-  screenshot storage through MediaStore and runs ML Kit text recognition on
-  them, using the Thai script model com.google.mlkit:text-recognition-thai.
-  The content rule table keeps images whose text scores as a slip. The check
-  is that a Thai slip image dropped into the emulator's screenshot folder
-  produces a capture row on a device.
+  screenshot storage through MediaStore and runs Tesseract OCR on them with
+  the bundled Thai and English models. The content rule table keeps images
+  whose text scores as a slip. The check is that a Thai slip image dropped
+  into the emulator's screenshot folder produces a capture row on a device.
+  The check passed on 2026-10-11 with three fixture slips captured and two
+  negative screenshots rejected.
 
 - **Phase 3, extraction.** The parser turns recognized text into an amount, a
   merchant, a datetime, and the issuing bank named on the slip, and writes an
-  ExpenseEntity row per slip with screen capture provenance. Slips the parser
+  ExpenseEntity row per slip with screen capture provenance. Two OCR quirks
+  are inputs to design against, both measured in the phase 2 device run: the
+  baht sign often reads as the digit 8, and sara am sometimes decomposes into
+  its base marks. Slips the parser
   cannot confidently read go to Gemma 4 E2B as a fallback, with a JSON
   contract for the fields. The check is that a golden set of slips maps to
   the expected expenses, with the fallback rate counted.

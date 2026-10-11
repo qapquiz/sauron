@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -37,6 +38,9 @@ class SlipIngestWorker(
         val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DATE_ADDED)
         try {
             var maxSeen = watermark
+            var seen = 0
+            var decoded = 0
+            var slips = 0
             resolver.query(
                 collection,
                 projection,
@@ -49,13 +53,20 @@ class SlipIngestWorker(
                     val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED))
                     if (dateAdded > maxSeen) maxSeen = dateAdded
                     val uri = ContentUris.withAppendedId(collection, id)
-                    val bitmap = decodeScaled(resolver, uri) ?: continue
+                    seen++
+                    val bitmap = decodeScaled(resolver, uri)
+                    if (bitmap == null) {
+                        Log.w(TAG, "decode returned null for $uri")
+                        continue
+                    }
+                    decoded++
                     val text = try {
                         recognize(bitmap)
                     } finally {
                         bitmap.recycle()
                     }
                     if (SlipRules.isSlip(SlipRules.score(text))) {
+                        slips++
                         container.captureDao.insert(
                             CaptureEntity(
                                 imageUri = uri.toString(),
@@ -68,6 +79,7 @@ class SlipIngestWorker(
                 }
             }
             prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
+            Log.i(TAG, "pass done: seen=$seen decoded=$decoded slips=$slips watermark=$maxSeen")
             return Result.success()
         } catch (e: Exception) {
             return Result.retry()
@@ -110,17 +122,38 @@ class SlipIngestWorker(
     }
 
     private fun decodeScaled(resolver: ContentResolver, uri: Uri): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
-        val maxDim = maxOf(bounds.outWidth, bounds.outHeight)
-        if (maxDim <= 0) return null
-        var sampleSize = 1
-        while (maxDim / (sampleSize * 2) >= MAX_DIMENSION) sampleSize *= 2
-        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-        return resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            val boundsStream = resolver.openInputStream(uri)
+            if (boundsStream == null) {
+                Log.w(TAG, "openInputStream null on bounds pass for $uri")
+                return null
+            }
+            boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
+            val maxDim = maxOf(bounds.outWidth, bounds.outHeight)
+            if (maxDim <= 0) {
+                Log.w(TAG, "bounds decode failed for $uri w=${bounds.outWidth} h=${bounds.outHeight}")
+                return null
+            }
+            var sampleSize = 1
+            while (maxDim / (sampleSize * 2) >= MAX_DIMENSION) sampleSize *= 2
+            val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val dataStream = resolver.openInputStream(uri)
+            if (dataStream == null) {
+                Log.w(TAG, "openInputStream null on decode pass for $uri")
+                return null
+            }
+            val bitmap = dataStream.use { BitmapFactory.decodeStream(it, null, options) }
+            if (bitmap == null) Log.w(TAG, "decodeStream null for $uri")
+            return bitmap
+        } catch (t: Throwable) {
+            Log.w(TAG, "decode threw for $uri", t)
+            return null
+        }
     }
 
     companion object {
+        private const val TAG = "SlipIngest"
         private const val PREFS_FILE = "ingest"
         private const val KEY_LAST_DATE_ADDED = "last_date_added"
         private const val MAX_DIMENSION = 2048
