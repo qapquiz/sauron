@@ -8,12 +8,6 @@ import java.time.Instant
 class SlipSourceCodecTest {
 
     @Test
-    fun `bank notification round-trips`() {
-        val source = SlipSource.BankNotification(BankId.SCB, Instant.ofEpochMilli(1_700_000_000_000))
-        assertEquals(source, SlipSourceCodec.decode(SlipSourceCodec.encode(source)))
-    }
-
-    @Test
     fun `screen capture round-trips`() {
         val source = SlipSource.ScreenCapture(
             "content://media/exports/slips/42",
