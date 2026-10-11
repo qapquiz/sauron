@@ -203,7 +203,7 @@ def render(name: str, spec: dict, width: int = 1080) -> None:
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, width, 130], fill=spec["accent"])
     fg_head = (255, 255, 255)
-    d.text((pad, 36), spec["bank"], font=header, fill=fg_head)
+    draw_mixed(d, (pad, 36), spec["bank"], header, header_latin, fg_head)
     fg = (240, 240, 245) if spec["dark"] else (34, 38, 46)
     y = 190
     for line in spec["lines"]:
