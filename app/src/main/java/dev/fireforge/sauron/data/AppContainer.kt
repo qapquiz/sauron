@@ -2,6 +2,7 @@ package dev.fireforge.sauron.data
 
 import android.content.Context
 import androidx.room.Room
+import dev.fireforge.sauron.ai.GemmaSlipReader
 
 class AppContainer(context: Context) {
 
@@ -16,4 +17,6 @@ class AppContainer(context: Context) {
     val categoryDao: CategoryDao get() = database.categoryDao()
 
     val captureDao: CaptureDao get() = database.captureDao()
+
+    val gemmaSlipReader: GemmaSlipReader by lazy { GemmaSlipReader(context) }
 }

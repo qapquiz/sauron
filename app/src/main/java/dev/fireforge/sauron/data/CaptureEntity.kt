@@ -7,6 +7,7 @@ import java.time.Instant
 
 enum class CaptureStatus {
     CAPTURED,
+    NEEDS_GEMMA,
     PARSING,
     PARSED,
     NO_PARSE,

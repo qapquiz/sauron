@@ -26,6 +26,7 @@ import dev.fireforge.sauron.data.AppContainer
 import dev.fireforge.sauron.data.CaptureEntity
 import dev.fireforge.sauron.data.CaptureStatus
 import dev.fireforge.sauron.data.ExpenseEntity
+import dev.fireforge.sauron.domain.Categorizer
 import dev.fireforge.sauron.domain.Currency
 import dev.fireforge.sauron.domain.SlipParse
 import dev.fireforge.sauron.domain.SlipParser
@@ -77,8 +78,14 @@ class SlipIngestWorker(
                     } finally {
                         bitmap.recycle()
                     }
-                    Log.d(TAG, "ocr for $uri scored ${SlipRules.score(text).total}: $text")
-                    if (SlipRules.isSlip(SlipRules.score(text))) {
+                    val score = SlipRules.score(text)
+                    Log.d(TAG, "ocr for $uri scored ${score.total}: $text")
+                    val status = when {
+                        SlipRules.isSlip(score) -> CaptureStatus.CAPTURED
+                        score.total >= GEMMA_SCORE_MIN -> CaptureStatus.NEEDS_GEMMA
+                        else -> null
+                    }
+                    if (status != null) {
                         slips++
                         container.captureDao.insert(
                             CaptureEntity(
@@ -86,6 +93,7 @@ class SlipIngestWorker(
                                 takenAt = Instant.ofEpochSecond(dateAdded),
                                 ocrText = text,
                                 detectedAt = Instant.now(),
+                                status = status,
                             ),
                         )
                     }
@@ -94,6 +102,7 @@ class SlipIngestWorker(
             prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
             Log.i(TAG, "pass done: seen=$seen decoded=$decoded slips=$slips watermark=$maxSeen")
             parsePendingCaptures(container)
+            gemmaPendingCaptures(container)
             return Result.success()
         } catch (e: Exception) {
             return Result.retry()
@@ -112,13 +121,15 @@ class SlipIngestWorker(
             if (container.captureDao.claim(capture.id, CaptureStatus.PARSING) != 1) continue
             when (val result = SlipParser.parse(capture.ocrText)) {
                 is SlipParse.Parsed -> {
+                    val categoryName = Categorizer.categorize(result.merchant) ?: "Other"
+                    val categoryId = categoryName.let { container.categoryDao.findIdByName(it) } ?: otherId
                     container.database.withTransaction {
                         container.expenseDao.insert(
                             ExpenseEntity(
                                 merchant = result.merchant,
                                 amountMinor = result.amountMinor,
                                 currency = Currency.THB,
-                                categoryId = otherId,
+                                categoryId = categoryId,
                                 occurredAt = result.occurredAt,
                                 bank = result.bank?.name,
                                 source = SlipSource.ScreenCapture(capture.imageUri, capture.takenAt),
@@ -137,6 +148,64 @@ class SlipIngestWorker(
             }
         }
         Log.i(TAG, "parse done: parsed=$parsed needsHelp=$needsHelp")
+    }
+
+    private suspend fun gemmaPendingCaptures(container: AppContainer) {
+        val otherId = container.categoryDao.otherCategoryId()
+        if (otherId == null) {
+            Log.w(TAG, "no Other category; skipping gemma stage")
+            return
+        }
+        var parsed = 0
+        var needsHelp = 0
+        for (capture in container.captureDao.gemmaPending()) {
+            if (container.captureDao.claimForGemma(capture.id, CaptureStatus.PARSING) != 1) continue
+            val bytes = readOriginalBytes(capture.imageUri)
+            if (bytes == null) {
+                // NO_PARSE rows are re-picked by this stage on the next pass, so unreadable images retry
+                container.captureDao.updateStatus(capture.id, CaptureStatus.NO_PARSE)
+                Log.w(TAG, "gemma: image bytes unreadable for ${capture.imageUri}")
+                needsHelp++
+                continue
+            }
+            when (val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                container.gemmaSlipReader.readSlip(bytes)
+            }) {
+                is SlipParse.Parsed -> {
+                    val categoryName = Categorizer.categorize(result.merchant) ?: "Other"
+                    val categoryId = categoryName.let { container.categoryDao.findIdByName(it) } ?: otherId
+                    container.database.withTransaction {
+                        container.expenseDao.insert(
+                            ExpenseEntity(
+                                merchant = result.merchant,
+                                amountMinor = result.amountMinor,
+                                currency = Currency.THB,
+                                categoryId = categoryId,
+                                occurredAt = result.occurredAt,
+                                bank = result.bank?.name,
+                                source = SlipSource.ScreenCapture(capture.imageUri, capture.takenAt),
+                                createdAt = Instant.now(),
+                            ),
+                        )
+                        container.captureDao.updateStatus(capture.id, CaptureStatus.PARSED)
+                    }
+                    parsed++
+                }
+                is SlipParse.NeedsHelp -> {
+                    container.captureDao.updateStatus(capture.id, CaptureStatus.NO_PARSE)
+                    Log.w(TAG, "capture ${capture.id} gemma needs help: ${result.reasons}")
+                    needsHelp++
+                }
+            }
+        }
+        Log.i(TAG, "gemma done: parsed=$parsed needsHelp=$needsHelp")
+    }
+
+    private fun readOriginalBytes(imageUri: String): ByteArray? = try {
+        applicationContext.contentResolver.openInputStream(Uri.parse(imageUri))?.use { it.readBytes() }
+    } catch (t: Throwable) {
+        Log.w(TAG, "openInputStream failed for $imageUri", t)
+        null
     }
 
     private fun preprocess(bitmap: Bitmap): Bitmap {
@@ -223,5 +292,6 @@ class SlipIngestWorker(
         private const val KEY_LAST_DATE_ADDED = "last_date_added"
         private const val MAX_DIMENSION = 2048
         private const val TESS_LANGUAGE = "tha+eng"
+        private const val GEMMA_SCORE_MIN = 2
     }
 }

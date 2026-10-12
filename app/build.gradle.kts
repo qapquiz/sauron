@@ -44,8 +44,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.tesseract4android)
+    implementation(libs.litertlm.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }
 
 ksp {
