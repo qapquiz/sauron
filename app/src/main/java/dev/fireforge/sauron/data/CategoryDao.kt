@@ -20,4 +20,7 @@ interface CategoryDao {
 
     @Query("SELECT id FROM categories WHERE name = 'Other'")
     suspend fun otherCategoryId(): Long?
+
+    @Query("SELECT id FROM categories WHERE name = :name")
+    suspend fun findIdByName(name: String): Long?
 }
