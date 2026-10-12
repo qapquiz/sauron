@@ -7,6 +7,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -69,10 +73,11 @@ class SlipIngestWorker(
                     }
                     decoded++
                     val text = try {
-                        recognize(bitmap)
+                        recognize(preprocess(bitmap))
                     } finally {
                         bitmap.recycle()
                     }
+                    Log.d(TAG, "ocr for $uri scored ${SlipRules.score(text).total}: $text")
                     if (SlipRules.isSlip(SlipRules.score(text))) {
                         slips++
                         container.captureDao.insert(
@@ -132,6 +137,17 @@ class SlipIngestWorker(
             }
         }
         Log.i(TAG, "parse done: parsed=$parsed needsHelp=$needsHelp")
+    }
+
+    private fun preprocess(bitmap: Bitmap): Bitmap {
+        val gray = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        Canvas(gray).drawBitmap(
+            bitmap,
+            0f,
+            0f,
+            Paint().apply { colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) }) },
+        )
+        return gray
     }
 
     private fun recognize(bitmap: Bitmap): String {

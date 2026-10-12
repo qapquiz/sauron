@@ -18,7 +18,7 @@ object SlipParser {
         Regex("(฿\\s*[0-9][0-9,]*(\\.[0-9]{2})?)|([0-9][0-9,]*\\.[0-9]{2}\\s*บาท)")
     private val datetime = Regex(
         "(\\d{1,2})\\s+(ม\\.ค\\.|ก\\.พ\\.|มี\\.ค\\.|เม\\.ย\\.|พ\\.ค\\.|มิ\\.ย\\.|ก\\.ค\\.|ส\\.ค\\.|ก\\.ย\\.|ต\\.ค\\.|พ\\.ย\\.|ธ\\.ค\\.)" +
-            "\\s+(\\d{4})\\s+(\\d{1,2}):(\\d{2})",
+            "\\s+(\\d{4}|\\d{2})\\s+(\\d{1,2}):(\\d{2})",
     )
     private val merchantLabel = Regex("^(ไปที่:|ถึงบัญชี:|ผู้รับ:)\\s*")
     private val monthAbbreviations = listOf(
@@ -56,6 +56,7 @@ object SlipParser {
         val occurredAt = datetime.find(text)?.let { match ->
             val month = monthAbbreviations.indexOf(match.groupValues[2]) + 1
             var year = match.groupValues[3].toInt()
+            if (year < 100) year += 2500
             if (year > 2400) year -= 543
             OffsetDateTime.of(
                 year,
@@ -77,6 +78,10 @@ object SlipParser {
                     line.substring(match.value.length).trim().ifEmpty { null }
                 }
             }
+            // K PLUS bill payment slips name the shop with no label; the company line is the stable signal
+                ?: text.lineSequence()
+                    .map { it.trim() }
+                    .firstOrNull { it.contains("จำกัด") }
         if (merchant == null) reasons += REASON_MERCHANT
 
         val amount = amountMinor

@@ -113,6 +113,15 @@ A phase is done when its check passes on a device, not when the code compiles.
   and beat the default, and a 2x upscale made accuracy worse and was
   rejected.
 
+  A real K PLUS bill payment slip set the phase 4 agenda on 2026-10-12: a
+  decorative watercolor design scored 0 to 3 of the needed 4 under every
+  OCR configuration tried, so the pipeline refused to store it, which is
+  correct behavior. Reading real decorative slips is Gemma's job. The slip
+  also added two parser features for its format: two digit Buddhist Era
+  years such as 69 meaning 2569, and merchants named on an unlabeled
+  company line ending in จำกัด. The image is kept under testdata as the
+  first real fixture.
+
 - **Phase 4, categorization.** A rule table matches merchant keywords first,
   and Gemma 4 E2B categorizes what the rules miss. Thai quality of small
   on-device models is unmeasured, so the golden set decides whether E2B

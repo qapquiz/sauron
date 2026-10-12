@@ -71,6 +71,17 @@ class SlipParserTest {
         Date: 01/10/2026 08:05
     """.trimIndent()
 
+    private val kplusRealShort = """
+        ชำระเงินสำเร็จ
+        11 ธ.ค. 69 18:43 น.
+        นาย อริยะ น
+        ธ.กสิกรไทย
+        แมคโดนัลด์-00108 สยามพารา กอน 1
+        บริษัท แมคไทย จำกัด
+        จำนวน: 49.00 บาท
+        เลขที่รายการ: 016284184342DQR09945
+    """.trimIndent()
+
     private val goldens = listOf(
         Golden(
             "scb_clean",
@@ -95,6 +106,11 @@ class SlipParserTest {
         ),
         Golden("english_partial", englishPartial, SlipParse.NeedsHelp(listOf("merchant"))),
         Golden("garbage", "asdf jkl", SlipParse.NeedsHelp(emptyList())),
+        Golden(
+            "kplus_short_be_year",
+            kplusRealShort,
+            SlipParse.Parsed(4900, "บริษัท แมคไทย จำกัด", Instant.parse("2026-12-11T11:43:00Z"), Bank.KBANK, emptyList()),
+        ),
     )
 
     @Test
