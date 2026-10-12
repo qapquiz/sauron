@@ -50,6 +50,14 @@ class GemmaSlipJsonTest {
     }
 
     @Test
+    fun jsonNullMerchantNeedsHelp() {
+        assertEquals(
+            SlipParse.NeedsHelp(listOf("merchant")),
+            GemmaSlipJson.parse("""{"amount": "45.50", "merchant": null, "date": "2026-12-11", "time": "18:43"}"""),
+        )
+    }
+
+    @Test
     fun garbageNeedsUnparseable() {
         assertEquals(
             SlipParse.NeedsHelp(listOf("gemma_unparseable")),

@@ -29,15 +29,15 @@ object GemmaSlipJson {
         val reasons = mutableListOf<String>()
         val notes = mutableListOf<String>()
 
-        val amountMinor = json.optString("amount").trim().takeIf { it.isNotEmpty() }?.let(::toMinorOrNull)
+        val amountMinor = optText(json, "amount")?.let(::toMinorOrNull)
         if (amountMinor == null) reasons += REASON_AMOUNT
 
-        json.optString("category").trim().takeIf { it.isNotEmpty() }?.let { notes += NOTE_CATEGORY_PREFIX + it }
+        optText(json, "category")?.let { notes += NOTE_CATEGORY_PREFIX + it }
 
-        val occurredAt = toInstant(json.optString("date"), json.optString("time"))
+        val occurredAt = toInstant(optText(json, "date"), optText(json, "time"))
         if (occurredAt == null) reasons += REASON_DATETIME
 
-        val merchant = json.optString("merchant").trim().takeIf { it.isNotEmpty() }
+        val merchant = optText(json, "merchant")
         if (merchant == null) reasons += REASON_MERCHANT
 
         val amount = amountMinor
@@ -55,6 +55,11 @@ object GemmaSlipJson {
             SlipParse.NeedsHelp(reasons)
         }
     }
+
+    // optString renders a JSON null as the four-letter string "null", which would
+    // become a literal merchant name
+    private fun optText(json: JSONObject, key: String): String? =
+        if (json.isNull(key)) null else json.optString(key).trim().takeIf { it.isNotEmpty() }
 
     private fun stripFences(text: String): String =
         text.lineSequence().filterNot { it.trimStart().startsWith("```") }.joinToString("\n")
@@ -75,9 +80,12 @@ object GemmaSlipJson {
         null
     }
 
-    private fun toInstant(date: String, time: String): Instant? = try {
-        LocalDate.parse(date.trim()).atTime(LocalTime.parse(time.trim())).atOffset(bangkok).toInstant()
-    } catch (t: DateTimeParseException) {
-        null
+    private fun toInstant(date: String?, time: String?): Instant? {
+        if (date == null || time == null) return null
+        return try {
+            LocalDate.parse(date).atTime(LocalTime.parse(time)).atOffset(bangkok).toInstant()
+        } catch (t: DateTimeParseException) {
+            null
+        }
     }
 }
