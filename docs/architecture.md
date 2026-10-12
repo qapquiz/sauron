@@ -123,12 +123,17 @@ A phase is done when its check passes on a device, not when the code compiles.
   first real fixture.
 
 - **Phase 4, categorization.** A rule table matches merchant keywords first,
-  and Gemma 4 E2B categorizes what the rules miss. Thai quality of small
-  on-device models is unmeasured, so the golden set decides whether E2B
-  clears the accuracy target, or the app steps up to E4B (a 2.97 GB GPU
-  build) or few-shot prompting before anything bigger is considered. The
-  check is that the golden set categorizes against a measured accuracy
-  target.
+  and Gemma 4 E2B handles what the rules and the parser could not: borderline
+  and parser-failed slips go to Gemma with the original image, not the OCR
+  text, because real decorative slips defeat OCR entirely. Done on
+  2026-10-12: the real K PLUS slip from this document's first real fixture
+  became an expense on device, แมคโดนัลด์ ฿49.00, Food & Drink, bank
+  Kasikornbank, with Gemma reading the image directly under litertlm 0.16.1
+  (newer builds carry Kotlin 2.4 metadata our compiler cannot read).
+  Unclassified slips stay at NO_PARSE and are retried, which is correct but
+  unbounded; an attempt counter is phase 5 polish. The model file is pushed
+  over adb in development; a download flow for real devices is still
+  deferred.
 
 - **Phase 5, reporting.** The main screen shows monthly totals per category.
   The check is that the on-screen totals match a SQL query over seeded data.
