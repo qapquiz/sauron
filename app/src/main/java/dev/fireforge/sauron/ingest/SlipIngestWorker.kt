@@ -16,9 +16,17 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.googlecode.tesseract.android.TessBaseAPI
 import dev.fireforge.sauron.SauronApplication
+import androidx.room.withTransaction
 import java.io.File
+import dev.fireforge.sauron.data.AppContainer
 import dev.fireforge.sauron.data.CaptureEntity
+import dev.fireforge.sauron.data.CaptureStatus
+import dev.fireforge.sauron.data.ExpenseEntity
+import dev.fireforge.sauron.domain.Currency
+import dev.fireforge.sauron.domain.SlipParse
+import dev.fireforge.sauron.domain.SlipParser
 import dev.fireforge.sauron.domain.SlipRules
+import dev.fireforge.sauron.domain.SlipSource
 import java.time.Instant
 
 class SlipIngestWorker(
@@ -80,10 +88,50 @@ class SlipIngestWorker(
             }
             prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
             Log.i(TAG, "pass done: seen=$seen decoded=$decoded slips=$slips watermark=$maxSeen")
+            parsePendingCaptures(container)
             return Result.success()
         } catch (e: Exception) {
             return Result.retry()
         }
+    }
+
+    private suspend fun parsePendingCaptures(container: AppContainer) {
+        val otherId = container.categoryDao.otherCategoryId()
+        if (otherId == null) {
+            Log.w(TAG, "no Other category; skipping parse stage")
+            return
+        }
+        var parsed = 0
+        var needsHelp = 0
+        for (capture in container.captureDao.pending()) {
+            if (container.captureDao.claim(capture.id, CaptureStatus.PARSING) != 1) continue
+            when (val result = SlipParser.parse(capture.ocrText)) {
+                is SlipParse.Parsed -> {
+                    container.database.withTransaction {
+                        container.expenseDao.insert(
+                            ExpenseEntity(
+                                merchant = result.merchant,
+                                amountMinor = result.amountMinor,
+                                currency = Currency.THB,
+                                categoryId = otherId,
+                                occurredAt = result.occurredAt,
+                                bank = result.bank?.name,
+                                source = SlipSource.ScreenCapture(capture.imageUri, capture.takenAt),
+                                createdAt = Instant.now(),
+                            ),
+                        )
+                        container.captureDao.updateStatus(capture.id, CaptureStatus.PARSED)
+                    }
+                    parsed++
+                }
+                is SlipParse.NeedsHelp -> {
+                    container.captureDao.updateStatus(capture.id, CaptureStatus.NO_PARSE)
+                    Log.w(TAG, "capture ${capture.id} needs help: ${result.reasons}")
+                    needsHelp++
+                }
+            }
+        }
+        Log.i(TAG, "parse done: parsed=$parsed needsHelp=$needsHelp")
     }
 
     private fun recognize(bitmap: Bitmap): String {
