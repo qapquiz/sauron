@@ -99,10 +99,19 @@ A phase is done when its check passes on a device, not when the code compiles.
   ExpenseEntity row per slip with screen capture provenance. Two OCR quirks
   are inputs to design against, both measured in the phase 2 device run: the
   baht sign often reads as the digit 8, and sara am sometimes decomposes into
-  its base marks. Slips the parser
-  cannot confidently read go to Gemma 4 E2B as a fallback, with a JSON
-  contract for the fields. The check is that a golden set of slips maps to
-  the expected expenses, with the fallback rate counted.
+  its base marks. A labeled amount starting with 8 is parked as unparsed
+  rather than guessed, because a true ฿8,350.00 is equally plausible. Slips
+  the parser cannot confidently read stay at NO_PARSE with the reasons
+  logged, and the Gemma fallback arrives in phase 4. The check is that a
+  golden set of slips maps to the expected expenses, with the fallback rate
+  counted. The golden set passed on 2026-10-12: four of seven cases parse,
+  three park with precise reasons. On device, one of three fixture slips
+  parses end to end (the Kasikorn slip, ฿1,250.00 with the bank recorded)
+  and the other two park with measured reasons, so roughly two thirds of
+  current OCR output is Gemma's job. Tuning measured along the way:
+  tessdata_best beats tessdata_fast, PSM single column or single block tie
+  and beat the default, and a 2x upscale made accuracy worse and was
+  rejected.
 
 - **Phase 4, categorization.** A rule table matches merchant keywords first,
   and Gemma 4 E2B categorizes what the rules miss. Thai quality of small

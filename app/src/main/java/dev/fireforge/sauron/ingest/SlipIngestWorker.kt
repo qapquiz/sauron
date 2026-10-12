@@ -139,6 +139,7 @@ class SlipIngestWorker(
         val tess = TessBaseAPI()
         return try {
             tess.init(applicationContext.filesDir.absolutePath, TESS_LANGUAGE)
+            tess.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_COLUMN)
             tess.setImage(bitmap)
             tess.getUTF8Text() ?: ""
         } finally {
