@@ -17,4 +17,13 @@ interface CaptureDao {
 
     @Query("SELECT COUNT(*) FROM captures")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM captures WHERE status = 'CAPTURED' ORDER BY detectedAt")
+    suspend fun pending(): List<CaptureEntity>
+
+    @Query("UPDATE captures SET status = :status WHERE id = :id AND status = 'CAPTURED'")
+    suspend fun claim(id: Long, status: CaptureStatus): Int
+
+    @Query("UPDATE captures SET status = :status WHERE id = :id")
+    suspend fun updateStatus(id: Long, status: CaptureStatus)
 }

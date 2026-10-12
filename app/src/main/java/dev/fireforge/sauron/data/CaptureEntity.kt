@@ -5,6 +5,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.Instant
 
+enum class CaptureStatus {
+    CAPTURED,
+    PARSING,
+    PARSED,
+    NO_PARSE,
+}
+
 @Entity(
     tableName = "captures",
     indices = [Index(value = ["imageUri"], unique = true)],
@@ -15,4 +22,5 @@ data class CaptureEntity(
     val takenAt: Instant,
     val ocrText: String,
     val detectedAt: Instant,
+    val status: CaptureStatus = CaptureStatus.CAPTURED,
 )

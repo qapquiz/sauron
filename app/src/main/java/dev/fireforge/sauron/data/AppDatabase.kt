@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [CategoryEntity::class, ExpenseEntity::class, CaptureEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -22,6 +22,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "sauron.db"
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses ADD COLUMN bank TEXT")
+                db.execSQL("ALTER TABLE captures ADD COLUMN status TEXT NOT NULL DEFAULT 'CAPTURED'")
+            }
+        }
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {

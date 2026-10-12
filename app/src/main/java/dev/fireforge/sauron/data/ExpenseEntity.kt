@@ -32,6 +32,7 @@ data class ExpenseEntity(
     val occurredAt: Instant,
     val source: SlipSource,
     val createdAt: Instant,
+    val bank: String? = null,
 )
 
 data class ExpenseWithCategory(
