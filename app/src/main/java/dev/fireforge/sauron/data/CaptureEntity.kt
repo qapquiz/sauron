@@ -24,4 +24,5 @@ data class CaptureEntity(
     val ocrText: String,
     val detectedAt: Instant,
     val status: CaptureStatus = CaptureStatus.CAPTURED,
+    val gemmaAttempts: Int = 0,
 )

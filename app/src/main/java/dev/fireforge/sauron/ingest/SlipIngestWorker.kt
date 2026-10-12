@@ -162,8 +162,8 @@ class SlipIngestWorker(
             if (container.captureDao.claimForGemma(capture.id, CaptureStatus.PARSING) != 1) continue
             val bytes = readOriginalBytes(capture.imageUri)
             if (bytes == null) {
-                // NO_PARSE rows are re-picked by this stage on the next pass, so unreadable images retry
-                container.captureDao.updateStatus(capture.id, CaptureStatus.NO_PARSE)
+                // Parked rows return while gemmaAttempts < 3, so unreadable images retry up to MAX_GEMMA_ATTEMPTS times
+                container.captureDao.parkAfterGemma(capture.id)
                 Log.w(TAG, "gemma: image bytes unreadable for ${capture.imageUri}")
                 needsHelp++
                 continue
@@ -192,7 +192,7 @@ class SlipIngestWorker(
                     parsed++
                 }
                 is SlipParse.NeedsHelp -> {
-                    container.captureDao.updateStatus(capture.id, CaptureStatus.NO_PARSE)
+                    container.captureDao.parkAfterGemma(capture.id)
                     Log.w(TAG, "capture ${capture.id} gemma needs help: ${result.reasons}")
                     needsHelp++
                 }
@@ -293,5 +293,6 @@ class SlipIngestWorker(
         private const val MAX_DIMENSION = 2048
         private const val TESS_LANGUAGE = "tha+eng"
         private const val GEMMA_SCORE_MIN = 2
+        private const val MAX_GEMMA_ATTEMPTS = 3
     }
 }

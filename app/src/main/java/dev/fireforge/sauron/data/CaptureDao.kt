@@ -21,7 +21,7 @@ interface CaptureDao {
     @Query("SELECT * FROM captures WHERE status = 'CAPTURED' ORDER BY detectedAt")
     suspend fun pending(): List<CaptureEntity>
 
-    @Query("SELECT * FROM captures WHERE status IN ('NEEDS_GEMMA', 'NO_PARSE') ORDER BY detectedAt")
+    @Query("SELECT * FROM captures WHERE status IN ('NEEDS_GEMMA', 'NO_PARSE') AND gemmaAttempts < 3 ORDER BY detectedAt")
     suspend fun gemmaPending(): List<CaptureEntity>
 
     @Query("UPDATE captures SET status = :status WHERE id = :id AND status = 'CAPTURED'")
@@ -32,4 +32,7 @@ interface CaptureDao {
 
     @Query("UPDATE captures SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: CaptureStatus)
+
+    @Query("UPDATE captures SET status = 'NO_PARSE', gemmaAttempts = gemmaAttempts + 1 WHERE id = :id")
+    suspend fun parkAfterGemma(id: Long)
 }
