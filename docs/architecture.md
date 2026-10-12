@@ -135,8 +135,14 @@ A phase is done when its check passes on a device, not when the code compiles.
   over adb in development; a download flow for real devices is still
   deferred.
 
-- **Phase 5, reporting.** The main screen shows monthly totals per category.
-  The check is that the on-screen totals match a SQL query over seeded data.
+- **Phase 5, reporting.** The main screen opens with This month, one total
+  per category for the current calendar month at Bangkok time, over the
+  expense list, and a photo permission card appears when access is missing.
+  The check is that the on-screen totals match a SQL query over the data.
+  The check passed on 2026-10-13: the screen showed Other ฿1,250.00 and
+  Food & Drink ฿49.00 against the identical SQL totals on an upgraded
+  device. Failed Gemma reads also cap at three attempts per capture, so
+  hopeless decorative slips stop costing battery.
 
 Notification capture is parked. Listening to bank notifications would also
 catch spending that never produces a viewed slip, but it needs listener
