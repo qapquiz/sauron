@@ -44,11 +44,20 @@ class SlipIngestWorker(
 
         val container = (applicationContext as SauronApplication).container
         val prefs = applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_LAST_DATE_ADDED)) {
+            // First run baseline: existing photos are never scanned, only new ones
+            prefs.edit().putLong(KEY_LAST_DATE_ADDED, System.currentTimeMillis() / 1000).apply()
+        }
         val watermark = prefs.getLong(KEY_LAST_DATE_ADDED, 0L)
 
         val resolver = applicationContext.contentResolver
         val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DATE_ADDED)
+        val (selection, selectionArgs) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            "(${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DATE_ADDED} > ?)" to arrayOf("$WATCHED_FOLDER%", watermark.toString())
+        } else {
+            "(${MediaStore.Images.Media.DATA} LIKE ? AND ${MediaStore.Images.Media.DATE_ADDED} > ?)" to arrayOf("%/$WATCHED_FOLDER/%", watermark.toString())
+        }
         try {
             var maxSeen = watermark
             var seen = 0
@@ -57,8 +66,8 @@ class SlipIngestWorker(
             resolver.query(
                 collection,
                 projection,
-                "${MediaStore.MediaColumns.DATE_ADDED} > ?",
-                arrayOf(watermark.toString()),
+                selection,
+                selectionArgs,
                 "${MediaStore.MediaColumns.DATE_ADDED} ASC",
             )?.use { cursor ->
                 while (cursor.moveToNext()) {
@@ -294,5 +303,6 @@ class SlipIngestWorker(
         private const val TESS_LANGUAGE = "tha+eng"
         private const val GEMMA_SCORE_MIN = 2
         private const val MAX_GEMMA_ATTEMPTS = 3
+        const val WATCHED_FOLDER = "Pictures/Screenshots"
     }
 }
