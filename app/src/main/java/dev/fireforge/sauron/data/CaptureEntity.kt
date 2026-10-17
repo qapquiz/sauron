@@ -11,6 +11,11 @@ enum class CaptureStatus {
     PARSING,
     PARSED,
     NO_PARSE,
+    ;
+
+    companion object {
+        const val MAX_GEMMA_ATTEMPTS = 3
+    }
 }
 
 @Entity(

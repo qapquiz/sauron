@@ -18,21 +18,28 @@ interface CaptureDao {
     @Query("SELECT COUNT(*) FROM captures")
     suspend fun count(): Int
 
-    @Query("SELECT * FROM captures WHERE status = 'CAPTURED' ORDER BY detectedAt")
-    suspend fun pending(): List<CaptureEntity>
+    @Query("SELECT * FROM captures WHERE status = :status ORDER BY detectedAt")
+    suspend fun pending(status: CaptureStatus = CaptureStatus.CAPTURED): List<CaptureEntity>
 
-    @Query("SELECT * FROM captures WHERE status IN ('NEEDS_GEMMA', 'NO_PARSE') AND gemmaAttempts < 3 ORDER BY detectedAt")
-    suspend fun gemmaPending(): List<CaptureEntity>
+    @Query("SELECT * FROM captures WHERE status IN (:statuses) AND gemmaAttempts < :maxAttempts ORDER BY detectedAt")
+    suspend fun gemmaPending(
+        statuses: Collection<CaptureStatus> = listOf(CaptureStatus.NEEDS_GEMMA, CaptureStatus.NO_PARSE),
+        maxAttempts: Int = CaptureStatus.MAX_GEMMA_ATTEMPTS,
+    ): List<CaptureEntity>
 
-    @Query("UPDATE captures SET status = :status WHERE id = :id AND status = 'CAPTURED'")
-    suspend fun claim(id: Long, status: CaptureStatus): Int
+    @Query("UPDATE captures SET status = :to WHERE id = :id AND status = :from")
+    suspend fun claim(id: Long, to: CaptureStatus, from: CaptureStatus = CaptureStatus.CAPTURED): Int
 
-    @Query("UPDATE captures SET status = :status WHERE id = :id AND status IN ('NEEDS_GEMMA', 'NO_PARSE')")
-    suspend fun claimForGemma(id: Long, status: CaptureStatus): Int
+    @Query("UPDATE captures SET status = :to WHERE id = :id AND status IN (:from)")
+    suspend fun claimForGemma(
+        id: Long,
+        to: CaptureStatus,
+        from: Collection<CaptureStatus> = listOf(CaptureStatus.NEEDS_GEMMA, CaptureStatus.NO_PARSE),
+    ): Int
 
     @Query("UPDATE captures SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: CaptureStatus)
 
-    @Query("UPDATE captures SET status = 'NO_PARSE', gemmaAttempts = gemmaAttempts + 1 WHERE id = :id")
-    suspend fun parkAfterGemma(id: Long)
+    @Query("UPDATE captures SET status = :to, gemmaAttempts = gemmaAttempts + 1 WHERE id = :id")
+    suspend fun parkAfterGemma(id: Long, to: CaptureStatus = CaptureStatus.NO_PARSE)
 }
