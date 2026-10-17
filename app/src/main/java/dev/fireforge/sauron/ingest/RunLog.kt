@@ -27,4 +27,7 @@ object RunLog {
     fun workerRetry(cause: Throwable) = Log.w(TAG, "ingest pass failed; retrying", cause)
 
     fun permissionDenied() = Log.w(TAG, "read permission missing; ingest cannot run")
+
+    fun strandedReleased(count: Int) =
+        Log.w(TAG, "released $count capture(s) stranded in PARSING by a previous run")
 }

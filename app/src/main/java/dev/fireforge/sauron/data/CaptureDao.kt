@@ -40,6 +40,9 @@ interface CaptureDao {
     @Query("UPDATE captures SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: CaptureStatus)
 
+    @Query("UPDATE captures SET status = :to WHERE status = :from")
+    suspend fun releaseAll(from: CaptureStatus, to: CaptureStatus): Int
+
     @Query("UPDATE captures SET status = :to, gemmaAttempts = gemmaAttempts + 1 WHERE id = :id")
     suspend fun parkAfterGemma(id: Long, to: CaptureStatus = CaptureStatus.NO_PARSE)
 }

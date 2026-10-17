@@ -42,6 +42,7 @@ class ExpenseFilerTest {
             statusUpdates++
         }
         override suspend fun parkAfterGemma(id: Long, to: CaptureStatus) = Unit
+        override suspend fun releaseAll(from: CaptureStatus, to: CaptureStatus) = 0
     }
 
     private class FakeCategories(private val otherId: Long?) : CategoryDao {
