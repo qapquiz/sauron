@@ -1,6 +1,7 @@
 package dev.fireforge.sauron.ai
 
 import dev.fireforge.sauron.domain.Bank
+import dev.fireforge.sauron.domain.SlipAmount
 import dev.fireforge.sauron.domain.SlipParse
 import java.time.Instant
 import java.time.LocalDate
@@ -71,14 +72,7 @@ object GemmaSlipJson {
         return text.substring(start, end + 1)
     }
 
-    private fun toMinorOrNull(token: String): Long? = try {
-        val clean = token.replace(",", "")
-        val dot = clean.indexOf('.')
-        if (dot == -1) clean.toLong() * 100
-        else clean.substring(0, dot).toLong() * 100 + clean.substring(dot + 1).padEnd(2, '0').toLong()
-    } catch (t: NumberFormatException) {
-        null
-    }
+    private fun toMinorOrNull(token: String): Long? = SlipAmount.toMinorOrNull(token)
 
     private fun toInstant(date: String?, time: String?): Instant? {
         if (date == null || time == null) return null
