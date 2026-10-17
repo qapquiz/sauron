@@ -21,7 +21,6 @@ object Fixtures {
                 merchant = f[1],
                 occurredAt = Instant.parse(f[2]),
                 bank = f[3].takeIf { it != "NONE" }?.let { Bank.valueOf(it) },
-                notes = f.getOrElse(4) { "-" }.split(",").filter { it != "-" },
             )
         } else {
             SlipParse.NeedsHelp(line.removePrefix("NeedsHelp ").split(",").filter { it != "-" })

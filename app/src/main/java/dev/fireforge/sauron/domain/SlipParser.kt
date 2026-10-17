@@ -10,7 +10,6 @@ object SlipParser {
     private const val REASON_DATETIME = "datetime"
     private const val REASON_MERCHANT = "merchant"
     private const val REASON_AMBIGUOUS_BAHT = "amount_ambiguous_baht_sign"
-    private const val NOTE_AMOUNT_FALLBACK = "amount_fallback"
 
     private val amountLabel = Regex("(จำนวนเงิน|จำนวน|amount)", RegexOption.IGNORE_CASE)
     private val amountToken = Regex("[0-9][0-9,]*(\\.[0-9]{2})?")
@@ -29,7 +28,6 @@ object SlipParser {
     fun parse(rawText: String): SlipParse {
         val text = SlipNormalizer.normalize(rawText)
         val reasons = mutableListOf<String>()
-        var notes: List<String> = emptyList()
 
         var amountMinor: Long? = null
         val labelMatch = amountLabel.find(text)
@@ -39,7 +37,6 @@ object SlipParser {
                 reasons += REASON_AMOUNT
             } else {
                 amountMinor = toMinor(amountToken.find(fallback.value)!!.value)
-                notes = listOf(NOTE_AMOUNT_FALLBACK)
             }
         } else {
             val lineEnd = text.indexOf('\n', labelMatch.range.last)
@@ -87,7 +84,7 @@ object SlipParser {
         val amount = amountMinor
         val at = occurredAt
         return if (reasons.isEmpty() && amount != null && at != null && merchant != null) {
-            SlipParse.Parsed(amount, merchant, at, Bank.fromText(text), notes)
+            SlipParse.Parsed(amount, merchant, at, Bank.fromText(text))
         } else {
             SlipParse.NeedsHelp(reasons)
         }
