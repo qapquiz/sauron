@@ -302,7 +302,6 @@ class SlipIngestWorker(
         private const val MAX_DIMENSION = 2048
         private const val TESS_LANGUAGE = "tha+eng"
         private const val GEMMA_SCORE_MIN = 2
-        private const val MAX_GEMMA_ATTEMPTS = 3
         const val WATCHED_FOLDER = "Pictures/Screenshots"
     }
 }
