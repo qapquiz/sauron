@@ -43,7 +43,6 @@ class MediaStoreScanner(private val resolver: ContentResolver) : ImageSource {
                 found += ScannedImage(ContentUris.withAppendedId(collection, id).toString(), dateAdded)
             }
         }
-        android.util.Log.d("SlipIngest", "DEBUG query wm=$watermark sel=$selection args=${selectionArgs.contentToString()} found=${found.size}")
         return found
     }
 
