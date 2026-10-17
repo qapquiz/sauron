@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.withTransaction
 import dev.fireforge.sauron.ai.GemmaSlipReader
+import dev.fireforge.sauron.ingest.IngestPipeline
+import dev.fireforge.sauron.ingest.MediaStoreScanner
+import dev.fireforge.sauron.ingest.TessOcr
 
 class AppContainer(context: Context) {
 
@@ -24,4 +27,15 @@ class AppContainer(context: Context) {
     }
 
     val gemmaSlipReader: GemmaSlipReader by lazy { GemmaSlipReader(context) }
+
+    val ingestPipeline: IngestPipeline by lazy {
+        IngestPipeline(
+            source = MediaStoreScanner(context.contentResolver),
+            ocr = TessOcr(context, MediaStoreScanner(context.contentResolver)),
+            gemma = gemmaSlipReader,
+            captures = captureDao,
+            filer = expenseFiler,
+            otherCategoryId = { categoryDao.otherCategoryId() },
+        )
+    }
 }
