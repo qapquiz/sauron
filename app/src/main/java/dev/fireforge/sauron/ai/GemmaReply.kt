@@ -7,60 +7,58 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeParseException
-import org.json.JSONException
-import org.json.JSONObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
-object GemmaSlipJson {
+@Serializable
+data class GemmaReply(
+    val amount: String? = null,
+    val merchant: String? = null,
+    val date: String? = null,
+    val time: String? = null,
+    val bank: String? = null,
+)
 
+/**
+ * Decodes the model's reply into a [SlipParse]. kotlinx.serialization maps JSON null and absent
+ * fields to null identically on the JVM and on device, so a green JVM test means the device
+ * behavior is green.
+ */
+object GemmaReplyCodec {
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private const val REASON_AMOUNT = "amount"
     private const val REASON_DATETIME = "datetime"
     private const val REASON_MERCHANT = "merchant"
     private const val REASON_UNPARSEABLE = "gemma_unparseable"
-    private const val NOTE_CATEGORY_PREFIX = "gemma_category:"
     private val bangkok = ZoneOffset.ofHours(7)
 
-    fun parse(response: String): SlipParse {
-        val json = try {
-            JSONObject(slice(stripFences(response)))
-        } catch (t: JSONException) {
+    fun decode(raw: String): SlipParse {
+        val reply = try {
+            json.decodeFromString<GemmaReply>(slice(stripFences(raw)))
+        } catch (t: Exception) {
             return SlipParse.NeedsHelp(listOf(REASON_UNPARSEABLE))
         }
-
         val reasons = mutableListOf<String>()
-        val notes = mutableListOf<String>()
-
-        val amountMinor = optText(json, "amount")?.let(::toMinorOrNull)
+        val amountMinor = reply.amount?.trim()?.let { SlipAmount.toMinorOrNull(it) }
         if (amountMinor == null) reasons += REASON_AMOUNT
-
-        optText(json, "category")?.let { notes += NOTE_CATEGORY_PREFIX + it }
-
-        val occurredAt = toInstant(optText(json, "date"), optText(json, "time"))
+        val occurredAt = toInstant(reply.date?.trim(), reply.time?.trim())
         if (occurredAt == null) reasons += REASON_DATETIME
-
-        val merchant = optText(json, "merchant")
+        val merchant = reply.merchant?.trim()?.takeIf { it.isNotEmpty() }
         if (merchant == null) reasons += REASON_MERCHANT
-
-        val amount = amountMinor
         val at = occurredAt
+        val amount = amountMinor
         val name = merchant
         return if (reasons.isEmpty() && amount != null && at != null && name != null) {
             SlipParse.Parsed(
                 amountMinor = amount,
                 merchant = name,
                 occurredAt = at,
-                bank = Bank.entries.firstOrNull { it.name == json.optString("bank") },
-                notes = notes,
+                bank = Bank.entries.firstOrNull { it.name == reply.bank?.trim() },
             )
         } else {
             SlipParse.NeedsHelp(reasons)
         }
     }
-
-    // optString renders a JSON null as the four-letter string "null", which would
-    // become a literal merchant name
-    private fun optText(json: JSONObject, key: String): String? =
-        if (json.isNull(key)) null else json.optString(key).trim().takeIf { it.isNotEmpty() }
 
     private fun stripFences(text: String): String =
         text.lineSequence().filterNot { it.trimStart().startsWith("```") }.joinToString("\n")
@@ -68,17 +66,15 @@ object GemmaSlipJson {
     private fun slice(text: String): String {
         val start = text.indexOf('{')
         val end = text.lastIndexOf('}')
-        if (start < 0 || end <= start) throw JSONException("no json object in response")
+        if (start < 0 || end <= start) throw IllegalArgumentException("no json object in response")
         return text.substring(start, end + 1)
     }
-
-    private fun toMinorOrNull(token: String): Long? = SlipAmount.toMinorOrNull(token)
 
     private fun toInstant(date: String?, time: String?): Instant? {
         if (date == null || time == null) return null
         return try {
             LocalDate.parse(date).atTime(LocalTime.parse(time)).atOffset(bangkok).toInstant()
-        } catch (t: DateTimeParseException) {
+        } catch (t: java.time.format.DateTimeParseException) {
             null
         }
     }

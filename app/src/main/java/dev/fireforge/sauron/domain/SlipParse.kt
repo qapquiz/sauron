@@ -8,7 +8,6 @@ sealed interface SlipParse {
         val merchant: String,
         val occurredAt: Instant,
         val bank: Bank?,
-        val notes: List<String>,
     ) : SlipParse
 
     data class NeedsHelp(val reasons: List<String>) : SlipParse

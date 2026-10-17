@@ -2,6 +2,7 @@
 agp = "9.4.1"
 composeCompiler = "2.2.10"
 ksp = "2.3.12"
+serializationJson = "1.9.0"
 composeBom = "2026.09.00"
 activityCompose = "1.13.0"
 lifecycleRuntimeKtx = "2.11.0"
@@ -12,7 +13,6 @@ junit = "4.13.2"
 work = "2.12.0"
 tesseract4android = "4.8.0"
 litertlm = "0.16.1"
-orgJson = "20240303"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,9 +33,10 @@ androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx"
 tesseract4android = { group = "com.github.adaptech-cz.Tesseract4Android", name = "tesseract4android", version.ref = "tesseract4android" }
 litertlm-android = { group = "com.google.ai.edge.litertlm", name = "litertlm-android", version.ref = "litertlm" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serializationJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "composeCompiler" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "composeCompiler" }
