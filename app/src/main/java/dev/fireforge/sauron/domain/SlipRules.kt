@@ -8,6 +8,9 @@ object SlipRules {
 
     val threshold = 4
 
+    /** Scores at or above this but below [threshold] go to the Gemma stage. */
+    const val gemmaFloor = 2
+
     val rules: List<SlipRule> = listOf(
         SlipRule(
             name = "transfer_words",
