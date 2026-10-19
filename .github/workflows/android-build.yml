@@ -2,8 +2,11 @@ name: Android Tagged Build
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -35,5 +38,5 @@ jobs:
       - name: 📤 Upload APK Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: android-${{ github.ref_name }}
+          name: android-${{ github.sha }}
           path: app/build/outputs/apk/debug/app-debug.apk
