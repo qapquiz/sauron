@@ -93,11 +93,6 @@ object SlipParser {
         }
     }
 
-    private fun toMinor(token: String): Long {
-        val clean = token.replace(",", "")
-        val dot = clean.indexOf('.')
-        if (dot == -1) return clean.toLong() * 100
-        return clean.substring(0, dot).toLong() * 100 +
-            clean.substring(dot + 1).padEnd(2, '0').toLong()
-    }
+    private fun toMinor(token: String): Long =
+        requireNotNull(SlipAmount.toMinorOrNull(token)) { "unparseable amount token: $token" }
 }
