@@ -20,14 +20,10 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.googlecode.tesseract.android.TessBaseAPI
 import dev.fireforge.sauron.SauronApplication
-import androidx.room.withTransaction
 import java.io.File
 import dev.fireforge.sauron.data.AppContainer
 import dev.fireforge.sauron.data.CaptureEntity
 import dev.fireforge.sauron.data.CaptureStatus
-import dev.fireforge.sauron.data.ExpenseEntity
-import dev.fireforge.sauron.domain.Categorizer
-import dev.fireforge.sauron.domain.Currency
 import dev.fireforge.sauron.domain.SlipParse
 import dev.fireforge.sauron.domain.SlipParser
 import dev.fireforge.sauron.domain.SlipRules
@@ -130,24 +126,9 @@ class SlipIngestWorker(
             if (container.captureDao.claim(capture.id, CaptureStatus.PARSING) != 1) continue
             when (val result = SlipParser.parse(capture.ocrText)) {
                 is SlipParse.Parsed -> {
-                    val categoryName = Categorizer.categorize(result.merchant) ?: "Other"
-                    val categoryId = categoryName.let { container.categoryDao.findIdByName(it) } ?: otherId
-                    container.database.withTransaction {
-                        container.expenseDao.insert(
-                            ExpenseEntity(
-                                merchant = result.merchant,
-                                amountMinor = result.amountMinor,
-                                currency = Currency.THB,
-                                categoryId = categoryId,
-                                occurredAt = result.occurredAt,
-                                bank = result.bank?.name,
-                                source = SlipSource.ScreenCapture(capture.imageUri, capture.takenAt),
-                                createdAt = Instant.now(),
-                            ),
-                        )
-                        container.captureDao.updateStatus(capture.id, CaptureStatus.PARSED)
+                    if (container.expenseFiler.file(capture, result, SlipSource.ScreenCapture(capture.imageUri, capture.takenAt))) {
+                        parsed++
                     }
-                    parsed++
                 }
                 is SlipParse.NeedsHelp -> {
                     container.captureDao.updateStatus(capture.id, CaptureStatus.NO_PARSE)
@@ -181,24 +162,9 @@ class SlipIngestWorker(
                 container.gemmaSlipReader.readSlip(bytes)
             }) {
                 is SlipParse.Parsed -> {
-                    val categoryName = Categorizer.categorize(result.merchant) ?: "Other"
-                    val categoryId = categoryName.let { container.categoryDao.findIdByName(it) } ?: otherId
-                    container.database.withTransaction {
-                        container.expenseDao.insert(
-                            ExpenseEntity(
-                                merchant = result.merchant,
-                                amountMinor = result.amountMinor,
-                                currency = Currency.THB,
-                                categoryId = categoryId,
-                                occurredAt = result.occurredAt,
-                                bank = result.bank?.name,
-                                source = SlipSource.ScreenCapture(capture.imageUri, capture.takenAt),
-                                createdAt = Instant.now(),
-                            ),
-                        )
-                        container.captureDao.updateStatus(capture.id, CaptureStatus.PARSED)
+                    if (container.expenseFiler.file(capture, result, SlipSource.ScreenCapture(capture.imageUri, capture.takenAt))) {
+                        parsed++
                     }
-                    parsed++
                 }
                 is SlipParse.NeedsHelp -> {
                     container.captureDao.parkAfterGemma(capture.id)
