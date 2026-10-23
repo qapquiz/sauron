@@ -157,6 +157,10 @@ class SlipIngestWorker(
     }
 
     private suspend fun gemmaPendingCaptures(container: AppContainer) {
+        if (!container.gemmaSlipReader.hasModel()) {
+            Log.i(TAG, "gemma skipped: no model")
+            return
+        }
         val otherId = container.categoryDao.otherCategoryId()
         if (otherId == null) {
             Log.w(TAG, "no Other category; skipping gemma stage")

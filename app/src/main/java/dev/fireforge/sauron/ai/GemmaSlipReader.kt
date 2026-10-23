@@ -58,6 +58,10 @@ class GemmaSlipReader(private val context: Context) {
         return null
     }
 
+    fun hasModel(): Boolean = modelCandidates().any { it.exists() && it.length() > MIN_MODEL_BYTES }
+
+    fun modelTarget(): File = File(context.filesDir, "models/$GPU_FILE")
+
     private fun modelCandidates(): List<File> {
         val external = context.getExternalFilesDir(null)?.let { File(it, "models") }
         return listOfNotNull(external?.let { File(it, GPU_FILE) }, File(context.filesDir, "models/$GPU_FILE"))
@@ -68,6 +72,8 @@ class GemmaSlipReader(private val context: Context) {
         private const val TAG = "Gemma"
         private const val GPU_FILE = "gemma-4-E2B-it-gpu.litertlm"
         private const val CPU_FILE = "gemma-4-E2B-it.litertlm"
+        private const val MIN_MODEL_BYTES = 1_000_000_000L
+        const val MODEL_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-gpu.litertlm"
         private const val REASON_GEMMA_FAILED = "gemma_failed"
 
         private val SLIP_PROMPT = """
