@@ -144,9 +144,14 @@ A phase is done when its check passes on a device, not when the code compiles.
   Kasikornbank, with Gemma reading the image directly under litertlm 0.16.1
   (newer builds carry Kotlin 2.4 metadata our compiler cannot read).
   Unclassified slips stay at NO_PARSE and are retried, which is correct but
-  unbounded; an attempt counter is phase 5 polish. The model file is pushed
-  over adb in development; a download flow for real devices is still
-  deferred.
+  unbounded; an attempt counter is phase 5 polish. The Gemma stage skips
+  itself while no model is on the phone, so the attempt budget is spent
+  only when a model exists. The model arrives through an in-app download:
+  a card on the main screen starts a WorkManager job that fetches the 2.0 GB
+  GPU file from the litert-community release over an unmetered network,
+  runs as a dataSync foreground service, and writes it to the location the
+  reader already searches. The download verified end to end on an emulator
+  on 2026-10-23.
 
 - **Phase 5, reporting.** The main screen opens with This month, one total
   per category for the current calendar month at Bangkok time, over the
