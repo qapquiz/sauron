@@ -54,10 +54,10 @@ class GemmaSlipReader(private val context: Context) {
                 Log.w(TAG, "gemma engine load failed for ${candidate.name}", t)
             }
         }
+        Log.w(TAG, "no gemma model loaded; tried ${modelCandidates().joinToString { it.absolutePath }}")
         return null
     }
 
-    // adb push target for development: /sdcard/Android/data/dev.fireforge.sauron/files/models/
     private fun modelCandidates(): List<File> {
         val external = context.getExternalFilesDir(null)?.let { File(it, "models") }
         return listOfNotNull(external?.let { File(it, GPU_FILE) }, File(context.filesDir, "models/$GPU_FILE"))
@@ -72,7 +72,7 @@ class GemmaSlipReader(private val context: Context) {
 
         private val SLIP_PROMPT = """
             You are reading a Thai bank payment slip image. Reply with ONLY minified JSON, no markdown fences, no other text.
-            Shape: {"amount": "49.00", "merchant": "...", "date": "YYYY-MM-DD", "time": "HH:MM", "bank": "SCB|KBANK|BBL|KTB|BAY|TTB|GSB" or null, "category": "Food & Drink|Transport|Shopping|Bills|Income|Other"}.
+            Shape: {"amount": "49.00", "merchant": "...", "date": "YYYY-MM-DD", "time": "HH:MM", "bank": "SCB|KBANK|BBL|KTB|BAY|TTB|GSB|CLICX" or null, "category": "Food & Drink|Transport|Shopping|Bills|Income|Other"}.
             "amount" is the จำนวนเงิน or จำนวน value as a decimal string of baht, for example "49.00".
             Thai month abbreviations map to months: ม.ค. = 01, ก.พ. = 02, มี.ค. = 03, เม.ย. = 04, พ.ค. = 05, มิ.ย. = 06, ก.ค. = 07, ส.ค. = 08, ก.ย. = 09, ต.ค. = 10, พ.ย. = 11, ธ.ค. = 12.
             A 2-digit year is Buddhist Era: 69 = 2569 = CE 2026.

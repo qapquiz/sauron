@@ -8,6 +8,7 @@ enum class Bank(val matchers: List<String>) {
     BAY(listOf("กรุงศรี")),
     TTB(listOf("ทีเอ็มบี", "tmb")),
     GSB(listOf("ออมสิน")),
+    CLICX(listOf("คลิกซ์", "clicx")),
     ;
 
     companion object {

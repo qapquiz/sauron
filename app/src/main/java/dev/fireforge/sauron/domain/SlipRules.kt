@@ -20,7 +20,7 @@ object SlipRules {
         SlipRule(
             name = "bank_terms",
             pattern = Regex(
-                "(ธนาคาร|พร้อมเพย์|promptpay|กสิกร|ไทยพาณิชย์|กรุงเทพ|กรุงไทย|กรุงศรี|ทีเอ็มบี|กสิกรไทย|scb|kbank|k plus)",
+                "(ธนาคาร|พร้อมเพย์|promptpay|กสิกร|ไทยพาณิชย์|กรุงเทพ|กรุงไทย|กรุงศรี|ทีเอ็มบี|กสิกรไทย|scb|kbank|k plus|คลิกซ์|clicx)",
                 RegexOption.IGNORE_CASE,
             ),
             weight = 2,
