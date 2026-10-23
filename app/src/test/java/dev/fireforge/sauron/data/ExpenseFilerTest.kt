@@ -66,7 +66,6 @@ class ExpenseFilerTest {
         merchant = "นางสาวปิยะดา วงศ์สุข",
         occurredAt = Instant.parse("2026-10-10T02:15:00Z"),
         bank = Bank.KBANK,
-        notes = emptyList(),
     )
 
     private fun capture() = CaptureEntity(imageUri = "content://x/1", takenAt = Instant.EPOCH, ocrText = "t", detectedAt = Instant.EPOCH)

@@ -9,7 +9,7 @@ class GemmaDecimalTest {
     @Test
     fun `three decimal amount is rejected, not mis-scaled`() {
         val reply = """{"amount":"49.555","merchant":"X","date":"2026-10-12","time":"10:00","bank":null}"""
-        val result = GemmaSlipJson.parse(reply)
+        val result = GemmaReplyCodec.decode(reply)
         assertTrue("expected NeedsHelp but got $result", result is SlipParse.NeedsHelp)
     }
 }

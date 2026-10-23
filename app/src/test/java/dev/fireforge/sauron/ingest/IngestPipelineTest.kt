@@ -188,7 +188,7 @@ class IngestPipelineTest {
         captures.insert(capture(CaptureStatus.NEEDS_GEMMA))
         captures.insert(capture(CaptureStatus.NO_PARSE, attempts = CaptureStatus.MAX_GEMMA_ATTEMPTS))
         val gemma = FakeGemma(
-            SlipParse.Parsed(4900L, "บริษัท แมคไทย จำกัด", Instant.parse("2026-12-11T11:43:00Z"), null, emptyList()),
+            SlipParse.Parsed(4900L, "บริษัท แมคไทย จำกัด", Instant.parse("2026-12-11T11:43:00Z"), null),
         )
         val source = FakeSource(emptyList(), bytes = mapOf("content://x/0-NEEDS_GEMMA" to ByteArray(0)))
         val report = pipeline(source, FakeOcr(emptyMap()), gemma, captures, expenses).run(0L)
