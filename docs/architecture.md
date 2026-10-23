@@ -4,10 +4,11 @@
 
 Sauron is an Android app that turns Thai payment slips into categorized
 expenses. A transfer in a Thai banking app ends with a payment slip on
-screen, and people screenshot those slips to share them. Sauron watches the
-phone's storage for new slip screenshots in the background, reads them with
-OCR, extracts the amount, the merchant, and the time, and files each expense
-under a category.
+screen. People screenshot those slips to share them, and bank apps can also
+save the slip itself into a folder of its own in the phone's Pictures
+directory. Sauron watches those bank-saved slip folders in the background,
+reads them with OCR, extracts the amount, the merchant, and the time, and
+files each expense under a category.
 
 The app is local only, with no account, no server, and no bank login.
 
@@ -73,9 +74,9 @@ and manual entry. Because the interface is sealed, the compiler rejects any
 consumer that misses a variant, so a third source breaks the build until each
 consumer handles it.
 
-An image is told apart from an ordinary screenshot by its content, not by its
-origin. A rule table looks at the recognized text for transfer words and
-amount patterns, and images that score as slips move on to extraction. The
+Watched images come from folders that bank apps save slips into, so their
+origin already says slip. The content score chooses the path, not admission.
+A high score goes to the text parser, and a low one goes to Gemma. The rule
 table is pure Kotlin with JVM tests.
 
 Room 2.8.5 stores everything on disk. The build exports the Room schema, and
@@ -86,13 +87,25 @@ a readable diff, and tests can verify a future migration against the exports.
 
 A phase is done when its check passes on a device, not when the code compiles.
 
-- **Phase 2, slip ingestion.** A WorkManager job watches new images in the
-  screenshot storage through MediaStore and runs Tesseract OCR on them with
-  the bundled Thai and English models. The content rule table keeps images
-  whose text scores as a slip. The check is that a Thai slip image dropped
-  into the emulator's screenshot folder produces a capture row on a device.
-  The check passed on 2026-10-11 with three fixture slips captured and two
-  negative screenshots rejected.
+- **Phase 2, slip ingestion.** A WorkManager job watches the bank-saved
+  slip folders through MediaStore and runs Tesseract OCR on new images with
+  the bundled Thai and English models. The watched folders are
+  Pictures/CLICX, Pictures/K PLUS, and Pictures/SCB EASY. The WatchedFolder
+  registry lists them with the bank whose app saves into each. Every image
+  in a watched folder was saved by a bank app, so the content score no
+  longer decides whether something is a slip. It splits the fast parse path
+  from the Gemma path. The check for the original screenshot watch passed
+  on 2026-10-11 with three fixture slips captured and two negative
+  screenshots rejected.
+
+  On 2026-10-23 the watch moved from Pictures/Screenshots to the three bank
+  folders, after the operator saw the K PLUS app save a slip into
+  Pictures/K PLUS on their own phone. The RELATIVE_PATH match is
+  exact-or-slash, which removes the prefix over-match a plain LIKE pattern
+  had against sibling folder names. CLICX joined the Bank enum as
+  Thailand's first virtual bank, licensed in May 2026. The on-device check
+  for the new folders is pending. Save a slip from each of the three bank
+  apps and confirm a capture row per slip.
 
 - **Phase 3, extraction.** The parser turns recognized text into an amount, a
   merchant, a datetime, and the issuing bank named on the slip, and writes an
@@ -149,5 +162,5 @@ catch spending that never produces a viewed slip, but it needs listener
 permissions, verified bank app package names, and OEM battery exceptions.
 Revisit only after the storage pipeline is complete.
 
-The app icon and the brand assets are deferred, as are the GitHub remote and
-CI. Nothing in phases 2 through 5 depends on them.
+The app icon and the brand assets are deferred. The GitHub remote and CI
+have existed since October 2026.
