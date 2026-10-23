@@ -16,24 +16,15 @@ class SlipIngestWorker(
             RunLog.permissionDenied()
             return Result.failure()
         }
-        val prefs = applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
-        if (!prefs.contains(KEY_LAST_DATE_ADDED)) {
-            // First run baseline: existing photos are never scanned, only new ones
-            prefs.edit().putLong(KEY_LAST_DATE_ADDED, System.currentTimeMillis() / 1000).apply()
-        }
+        val cursor = container.ingestCursor
         return try {
-            val report = container.ingestPipeline.run(prefs.getLong(KEY_LAST_DATE_ADDED, 0L))
-            prefs.edit().putLong(KEY_LAST_DATE_ADDED, report.maxSeen).apply()
+            val report = container.ingestPipeline.run(cursor.read())
+            cursor.advance(report.maxSeen)
             RunLog.passDone(report.seen, report.decoded, report.slips, report.maxSeen)
             Result.success()
         } catch (e: Exception) {
             RunLog.workerRetry(e)
             Result.retry()
         }
-    }
-
-    private companion object {
-        const val PREFS_FILE = "ingest"
-        const val KEY_LAST_DATE_ADDED = "last_date_added"
     }
 }

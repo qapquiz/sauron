@@ -78,6 +78,16 @@ class IngestPipelineTest {
             val i = rows.indexOfFirst { it.id == id }
             if (i != -1) rows[i] = rows[i].copy(status = to, gemmaAttempts = rows[i].gemmaAttempts + 1)
         }
+        override suspend fun releaseAll(from: CaptureStatus, to: CaptureStatus): Int {
+            var n = 0
+            for (i in rows.indices) {
+                if (rows[i].status == from) {
+                    rows[i] = rows[i].copy(status = to)
+                    n++
+                }
+            }
+            return n
+        }
     }
 
     private class RecordingExpenses : ExpenseDao {
@@ -148,6 +158,27 @@ class IngestPipelineTest {
         assertEquals(125000L, expenses.inserted[0].amountMinor)
         assertEquals(CaptureStatus.PARSED, captures.rows.single { it.imageUri == "content://slip" }.status)
         assertEquals(0, captures.rows.count { it.imageUri == "content://noise" })
+    }
+
+    @Test
+    fun `a pass releases captures stranded in PARSING and files them exactly once`() = runTest {
+        val captures = MemoryCaptures()
+        val expenses = RecordingExpenses()
+        captures.insert(
+            CaptureEntity(
+                imageUri = "content://stranded",
+                takenAt = Instant.EPOCH,
+                ocrText = Fixtures.parserCaseText("kbank_clean"),
+                detectedAt = Instant.EPOCH,
+                status = CaptureStatus.PARSING,
+            ),
+        )
+        val report = pipeline(FakeSource(emptyList()), FakeOcr(emptyMap()), FakeGemma(SlipParse.NeedsHelp(listOf("x"))), captures, expenses)
+            .run(0L)
+
+        assertEquals(1, report.filed)
+        assertEquals(CaptureStatus.PARSED, captures.rows.single().status)
+        assertEquals(1, expenses.inserted.size)
     }
 
     @Test

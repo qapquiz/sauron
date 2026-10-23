@@ -28,6 +28,8 @@ class IngestPipeline(
     data class RunReport(val seen: Int, val decoded: Int, val slips: Int, val filed: Int, val parked: Int, val maxSeen: Long)
 
     suspend fun run(watermark: Long): RunReport {
+        val stranded = captures.releaseAll(CaptureStatus.PARSING, CaptureStatus.CAPTURED)
+        if (stranded > 0) RunLog.strandedReleased(stranded)
         var maxSeen = watermark
         var seen = 0
         var decoded = 0
