@@ -25,4 +25,5 @@ data class CaptureEntity(
     val detectedAt: Instant,
     val status: CaptureStatus = CaptureStatus.CAPTURED,
     val gemmaAttempts: Int = 0,
+    val claimedAt: Instant? = null,
 )

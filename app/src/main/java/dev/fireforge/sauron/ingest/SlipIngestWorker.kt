@@ -46,6 +46,8 @@ class SlipIngestWorker(
         if (!hasReadPermission()) return Result.failure()
 
         val container = (applicationContext as SauronApplication).container
+        val reopened = container.captureDao.reopenStaleClaims(Instant.now().minusSeconds(STALE_CLAIM_SECONDS))
+        Log.i(TAG, "reopened stale claims: $reopened")
         val prefs = applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         val watermark = firstRunWatermark(prefs)
 
@@ -122,7 +124,7 @@ class SlipIngestWorker(
         var parsed = 0
         var needsHelp = 0
         for (capture in container.captureDao.pending()) {
-            if (container.captureDao.claim(capture.id, CaptureStatus.PARSING) != 1) continue
+            if (container.captureDao.claim(capture.id, CaptureStatus.PARSING, Instant.now()) != 1) continue
             when (val result = SlipParser.parse(capture.ocrText)) {
                 is SlipParse.Parsed -> {
                     val categoryName = Categorizer.categorize(result.merchant) ?: "Other"
@@ -163,7 +165,7 @@ class SlipIngestWorker(
         var parsed = 0
         var needsHelp = 0
         for (capture in container.captureDao.gemmaPending()) {
-            if (container.captureDao.claimForGemma(capture.id, CaptureStatus.PARSING) != 1) continue
+            if (container.captureDao.claimForGemma(capture.id, CaptureStatus.PARSING, Instant.now()) != 1) continue
             val bytes = readOriginalBytes(capture.imageUri)
             if (bytes == null) {
                 container.captureDao.recordGemmaFailure(capture.id)
@@ -304,6 +306,7 @@ class SlipIngestWorker(
         private const val PREFS_FILE = "ingest"
         private const val KEY_LAST_DATE_ADDED = "last_date_added"
         private const val MAX_DIMENSION = 2048
+        private const val STALE_CLAIM_SECONDS = 3600L
         private const val TESS_LANGUAGE = "tha+eng"
     }
 }
