@@ -10,11 +10,16 @@ import com.google.ai.edge.litertlm.EngineConfig
 import dev.fireforge.sauron.domain.SlipParse
 import java.io.File
 
-class GemmaSlipReader(private val context: Context) {
+/** Reads a slip image's bytes into a parse result. Implemented by the on-device Gemma reader. */
+interface GemmaReader {
+    fun readSlip(imageBytes: ByteArray): SlipParse
+}
+
+class GemmaSlipReader(private val context: Context) : GemmaReader {
 
     private var engine: Engine? = null
 
-    fun readSlip(imageBytes: ByteArray): SlipParse {
+    override fun readSlip(imageBytes: ByteArray): SlipParse {
         val e = ensureEngine() ?: return SlipParse.NeedsHelp(listOf(REASON_GEMMA_FAILED))
         return try {
             e.createConversation().use { conversation ->

@@ -43,6 +43,7 @@ import dev.fireforge.sauron.data.ExpenseWithCategory
 import dev.fireforge.sauron.domain.Currency
 import dev.fireforge.sauron.domain.Money
 import dev.fireforge.sauron.domain.MonthWindow
+import dev.fireforge.sauron.ingest.ImagePermission
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -65,15 +66,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun rememberImagePermission(context: Context): Pair<Boolean, () -> Unit> {
-    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        Manifest.permission.READ_MEDIA_IMAGES
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
-    }
+    val permission = ImagePermission.name(Build.VERSION.SDK_INT)
     var granted by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED,
-        )
+        mutableStateOf(ImagePermission.granted(context))
     }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
         granted = result
