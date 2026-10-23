@@ -13,6 +13,7 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
+import android.content.SharedPreferences
 import android.provider.MediaStore
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -31,7 +32,9 @@ import dev.fireforge.sauron.domain.Currency
 import dev.fireforge.sauron.domain.SlipParse
 import dev.fireforge.sauron.domain.SlipParser
 import dev.fireforge.sauron.domain.SlipRules
+import dev.fireforge.sauron.domain.SlipScore
 import dev.fireforge.sauron.domain.SlipSource
+import dev.fireforge.sauron.domain.WatchedFolder
 import java.time.Instant
 
 class SlipIngestWorker(
@@ -44,25 +47,23 @@ class SlipIngestWorker(
 
         val container = (applicationContext as SauronApplication).container
         val prefs = applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
-        if (!prefs.contains(KEY_LAST_DATE_ADDED)) {
-            // First run baseline: existing photos are never scanned, only new ones
-            prefs.edit().putLong(KEY_LAST_DATE_ADDED, System.currentTimeMillis() / 1000).apply()
-        }
-        val watermark = prefs.getLong(KEY_LAST_DATE_ADDED, 0L)
+        val watermark = firstRunWatermark(prefs)
 
         val resolver = applicationContext.contentResolver
         val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DATE_ADDED)
-        val (selection, selectionArgs) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            "(${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DATE_ADDED} > ?)" to arrayOf("$WATCHED_FOLDER%", watermark.toString())
-        } else {
-            "(${MediaStore.Images.Media.DATA} LIKE ? AND ${MediaStore.Images.Media.DATE_ADDED} > ?)" to arrayOf("%/$WATCHED_FOLDER/%", watermark.toString())
-        }
+        val (selection, selectionArgs) = WatchedFolder.selection(
+            relativePathColumn = MediaStore.MediaColumns.RELATIVE_PATH,
+            dataColumn = MediaStore.MediaColumns.DATA,
+            dateAddedColumn = MediaStore.MediaColumns.DATE_ADDED,
+            useRelativePath = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q,
+            watermarkSeconds = watermark,
+        )
         try {
             var maxSeen = watermark
             var seen = 0
             var decoded = 0
-            var slips = 0
+            var captures = 0
             resolver.query(
                 collection,
                 projection,
@@ -89,27 +90,21 @@ class SlipIngestWorker(
                     }
                     val score = SlipRules.score(text)
                     Log.d(TAG, "ocr for $uri scored ${score.total}: $text")
-                    val status = when {
-                        SlipRules.isSlip(score) -> CaptureStatus.CAPTURED
-                        score.total >= GEMMA_SCORE_MIN -> CaptureStatus.NEEDS_GEMMA
-                        else -> null
-                    }
-                    if (status != null) {
-                        slips++
-                        container.captureDao.insert(
-                            CaptureEntity(
-                                imageUri = uri.toString(),
-                                takenAt = Instant.ofEpochSecond(dateAdded),
-                                ocrText = text,
-                                detectedAt = Instant.now(),
-                                status = status,
-                            ),
-                        )
-                    }
+                    val status = statusFor(score)
+                    captures++
+                    container.captureDao.insert(
+                        CaptureEntity(
+                            imageUri = uri.toString(),
+                            takenAt = Instant.ofEpochSecond(dateAdded),
+                            ocrText = text,
+                            detectedAt = Instant.now(),
+                            status = status,
+                        ),
+                    )
                 }
             }
             prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
-            Log.i(TAG, "pass done: seen=$seen decoded=$decoded slips=$slips watermark=$maxSeen")
+            Log.i(TAG, "pass done: seen=$seen decoded=$decoded captures=$captures watermark=$maxSeen")
             parsePendingCaptures(container)
             gemmaPendingCaptures(container)
             return Result.success()
@@ -171,8 +166,7 @@ class SlipIngestWorker(
             if (container.captureDao.claimForGemma(capture.id, CaptureStatus.PARSING) != 1) continue
             val bytes = readOriginalBytes(capture.imageUri)
             if (bytes == null) {
-                // Parked rows return while gemmaAttempts < 3, so unreadable images retry up to MAX_GEMMA_ATTEMPTS times
-                container.captureDao.parkAfterGemma(capture.id)
+                container.captureDao.recordGemmaFailure(capture.id)
                 Log.w(TAG, "gemma: image bytes unreadable for ${capture.imageUri}")
                 needsHelp++
                 continue
@@ -201,7 +195,7 @@ class SlipIngestWorker(
                     parsed++
                 }
                 is SlipParse.NeedsHelp -> {
-                    container.captureDao.parkAfterGemma(capture.id)
+                    container.captureDao.recordGemmaFailure(capture.id)
                     Log.w(TAG, "capture ${capture.id} gemma needs help: ${result.reasons}")
                     needsHelp++
                 }
@@ -295,14 +289,21 @@ class SlipIngestWorker(
         }
     }
 
+    private fun statusFor(score: SlipScore): CaptureStatus =
+        if (SlipRules.isSlip(score)) CaptureStatus.CAPTURED else CaptureStatus.NEEDS_GEMMA
+
+    private fun firstRunWatermark(prefs: SharedPreferences): Long {
+        if (!prefs.contains(KEY_LAST_DATE_ADDED)) {
+            prefs.edit().putLong(KEY_LAST_DATE_ADDED, System.currentTimeMillis() / 1000).apply()
+        }
+        return prefs.getLong(KEY_LAST_DATE_ADDED, 0L)
+    }
+
     companion object {
         private const val TAG = "SlipIngest"
         private const val PREFS_FILE = "ingest"
         private const val KEY_LAST_DATE_ADDED = "last_date_added"
         private const val MAX_DIMENSION = 2048
         private const val TESS_LANGUAGE = "tha+eng"
-        private const val GEMMA_SCORE_MIN = 2
-        private const val MAX_GEMMA_ATTEMPTS = 3
-        const val WATCHED_FOLDER = "Pictures/Screenshots"
     }
 }

@@ -34,5 +34,5 @@ interface CaptureDao {
     suspend fun updateStatus(id: Long, status: CaptureStatus)
 
     @Query("UPDATE captures SET status = 'NO_PARSE', gemmaAttempts = gemmaAttempts + 1 WHERE id = :id")
-    suspend fun parkAfterGemma(id: Long)
+    suspend fun recordGemmaFailure(id: Long)
 }
