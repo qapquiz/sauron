@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,27 +38,63 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import dev.fireforge.sauron.SauronApplication
 import dev.fireforge.sauron.data.CategoryTotal
 import dev.fireforge.sauron.data.ExpenseWithCategory
 import dev.fireforge.sauron.domain.Currency
 import dev.fireforge.sauron.domain.Money
 import dev.fireforge.sauron.domain.MonthWindow
+import dev.fireforge.sauron.ingest.ModelDownloadWorker
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val expenseDao = (application as SauronApplication).container.expenseDao
+        val container = (application as SauronApplication).container
+        val expenseDao = container.expenseDao
         val window = MonthWindow.current(Instant.now(), ZoneOffset.ofHours(7))
         setContent {
             SauronTheme {
                 val (hasImagePermission, requestImagePermission) = rememberImagePermission(applicationContext)
                 val expenses by expenseDao.observeAll().collectAsState(initial = emptyList())
                 val totals by expenseDao.totalByCategory(window.from, window.to).collectAsState(initial = emptyList())
-                ExpenseScreen(expenses, totals, hasImagePermission, requestImagePermission)
+                val workInfos by WorkManager.getInstance(applicationContext)
+                    .getWorkInfosForUniqueWorkFlow(ModelDownloadWorker.UNIQUE_NAME)
+                    .collectAsState(initial = emptyList())
+                val downloadInfo = workInfos.firstOrNull {
+                    it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED
+                } ?: workInfos.lastOrNull()
+                var modelReady by remember { mutableStateOf(container.gemmaSlipReader.hasModel()) }
+                LaunchedEffect(downloadInfo?.state) {
+                    if (downloadInfo?.state == WorkInfo.State.SUCCEEDED) {
+                        modelReady = container.gemmaSlipReader.hasModel()
+                    }
+                }
+                val downloadModel: () -> Unit = {
+                    WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                        ModelDownloadWorker.UNIQUE_NAME,
+                        ExistingWorkPolicy.KEEP,
+                        OneTimeWorkRequestBuilder<ModelDownloadWorker>()
+                            .setConstraints(Constraints(requiredNetworkType = NetworkType.UNMETERED))
+                            .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
+                            .build(),
+                    )
+                }
+                ExpenseScreen(expenses, totals, hasImagePermission, requestImagePermission) {
+                    if (!modelReady) {
+                        ModelDownloadCard(downloadInfo, downloadModel)
+                    }
+                }
             }
         }
     }
@@ -92,6 +129,7 @@ fun ExpenseScreen(
     totals: List<CategoryTotal>,
     hasImagePermission: Boolean,
     onRequestImagePermission: () -> Unit,
+    modelCard: @Composable () -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -99,28 +137,59 @@ fun ExpenseScreen(
             .safeDrawingPadding(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        if (expenses.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No expenses yet")
+        Column(modifier = Modifier.fillMaxSize()) {
+            modelCard()
+            if (expenses.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No expenses yet")
+                }
+            } else {
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    if (!hasImagePermission) {
+                        item { PermissionBanner(onRequestImagePermission) }
+                    }
+                    item {
+                        Text(
+                            "This month",
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    items(totals) { total ->
+                        CategoryTotalRow(total)
+                    }
+                    item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
+                    items(expenses) { expense ->
+                        ExpenseRow(expense)
+                    }
+                }
             }
-        } else {
-            LazyColumn {
-                if (!hasImagePermission) {
-                    item { PermissionBanner(onRequestImagePermission) }
-                }
-                item {
-                    Text(
-                        "This month",
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                items(totals) { total ->
-                    CategoryTotalRow(total)
-                }
-                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
-                items(expenses) { expense ->
-                    ExpenseRow(expense)
+        }
+    }
+}
+
+@Composable
+private fun ModelDownloadCard(downloadInfo: WorkInfo?, onDownload: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Gemma model for slip reading")
+            if (downloadInfo?.state == WorkInfo.State.RUNNING) {
+                LinearProgressIndicator(
+                    progress = {
+                        downloadInfo.progress.getInt(ModelDownloadWorker.PROGRESS_PERCENT, 0) / 100f
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Button(onClick = onDownload) {
+                    Text("Download model (2.0 GB, WiFi)")
                 }
             }
         }
