@@ -307,6 +307,8 @@ class SlipIngestWorker(
 
     companion object {
         private const val TAG = "SlipIngest"
+        const val UNIQUE_ONE_TIME_NAME = "slip-ingest-once"
+        const val UNIQUE_PERIODIC_NAME = "slip-ingest-periodic"
         private const val PREFS_FILE = "ingest"
         private const val KEY_LAST_DATE_ADDED = "last_date_added"
         private const val MAX_DIMENSION = 2048

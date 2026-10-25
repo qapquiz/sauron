@@ -19,6 +19,9 @@ interface CaptureDao {
     @Query("SELECT COUNT(*) FROM captures")
     suspend fun count(): Int
 
+    @Query("SELECT COUNT(*) FROM captures WHERE status != 'PARSED'")
+    fun observeParkedCount(): Flow<Int>
+
     @Query("SELECT * FROM captures WHERE status = 'CAPTURED' ORDER BY detectedAt")
     suspend fun pending(): List<CaptureEntity>
 
