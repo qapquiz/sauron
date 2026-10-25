@@ -30,19 +30,14 @@ class SauronApplication : Application() {
         }
         val workManager = WorkManager.getInstance(this)
         workManager.enqueueUniqueWork(
-            ONE_TIME_WORK_NAME,
+            SlipIngestWorker.UNIQUE_ONE_TIME_NAME,
             ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<SlipIngestWorker>().build(),
         )
         workManager.enqueueUniquePeriodicWork(
-            PERIODIC_WORK_NAME,
+            SlipIngestWorker.UNIQUE_PERIODIC_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<SlipIngestWorker>(15, TimeUnit.MINUTES).build(),
         )
-    }
-
-    private companion object {
-        const val ONE_TIME_WORK_NAME = "slip-ingest-once"
-        const val PERIODIC_WORK_NAME = "slip-ingest-periodic"
     }
 }

@@ -52,6 +52,9 @@ import dev.fireforge.sauron.domain.Currency
 import dev.fireforge.sauron.domain.Money
 import dev.fireforge.sauron.domain.MonthWindow
 import dev.fireforge.sauron.ingest.ModelDownloadWorker
+import dev.fireforge.sauron.ingest.ScanStatus
+import dev.fireforge.sauron.ingest.SlipIngestWorker
+import dev.fireforge.sauron.ingest.scanStatus
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
@@ -90,7 +93,19 @@ class MainActivity : ComponentActivity() {
                             .build(),
                     )
                 }
-                ExpenseScreen(expenses, totals, hasImagePermission, requestImagePermission) {
+                val oneTimeWorkInfos by WorkManager.getInstance(applicationContext)
+                    .getWorkInfosForUniqueWorkFlow(SlipIngestWorker.UNIQUE_ONE_TIME_NAME)
+                    .collectAsState(initial = emptyList())
+                val periodicWorkInfos by WorkManager.getInstance(applicationContext)
+                    .getWorkInfosForUniqueWorkFlow(SlipIngestWorker.UNIQUE_PERIODIC_NAME)
+                    .collectAsState(initial = emptyList())
+                val parkedCount by container.captureDao.observeParkedCount().collectAsState(initial = 0)
+                val status = scanStatus(
+                    oneTime = oneTimeWorkInfos.map { it.state },
+                    periodic = periodicWorkInfos.map { it.state },
+                    parked = parkedCount,
+                )
+                ExpenseScreen(expenses, totals, status, hasImagePermission, requestImagePermission) {
                     if (!modelReady) {
                         ModelDownloadCard(downloadInfo, downloadModel)
                     }
@@ -127,6 +142,7 @@ private fun rememberImagePermission(context: Context): Pair<Boolean, () -> Unit>
 fun ExpenseScreen(
     expenses: List<ExpenseWithCategory>,
     totals: List<CategoryTotal>,
+    status: ScanStatus,
     hasImagePermission: Boolean,
     onRequestImagePermission: () -> Unit,
     modelCard: @Composable () -> Unit,
@@ -139,15 +155,16 @@ fun ExpenseScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             modelCard()
+            if (!hasImagePermission) {
+                PermissionBanner(onRequestImagePermission)
+            }
+            ScanIndicator(status)
             if (expenses.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No expenses yet")
                 }
             } else {
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    if (!hasImagePermission) {
-                        item { PermissionBanner(onRequestImagePermission) }
-                    }
                     item {
                         Text(
                             "This month",
@@ -165,6 +182,28 @@ fun ExpenseScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ScanIndicator(status: ScanStatus) {
+    when (status) {
+        ScanStatus.Working -> Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Text("Scanning slips")
+        }
+        is ScanStatus.Parked -> Text(
+            "${status.count} slips waiting to be read",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        ScanStatus.Idle -> Unit
     }
 }
 
