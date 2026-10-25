@@ -14,7 +14,7 @@ Sauron is an Android app that turns Thai payment slips into a categorized expens
 | SCB EASY | `Pictures/SCB EASY` |
 | CLICX | `Pictures/CLICX` |
 
-Save a slip from the bank app and it becomes an expense within 15 minutes, or at the next app open. Screenshots are not scanned.
+Save a slip from the bank app and it becomes an expense within 15 minutes, or at the next app open. The main screen shows a scanning bar while a pass runs and counts slips that wait to be read. Screenshots are not scanned.
 
 ## How it works
 
