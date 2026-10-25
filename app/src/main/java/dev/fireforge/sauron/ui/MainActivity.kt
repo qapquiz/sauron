@@ -139,15 +139,15 @@ fun ExpenseScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             modelCard()
+            if (!hasImagePermission) {
+                PermissionBanner(onRequestImagePermission)
+            }
             if (expenses.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No expenses yet")
                 }
             } else {
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    if (!hasImagePermission) {
-                        item { PermissionBanner(onRequestImagePermission) }
-                    }
                     item {
                         Text(
                             "This month",
