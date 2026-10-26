@@ -1,6 +1,7 @@
 package dev.fireforge.sauron.ai
 
 import android.content.Context
+import android.util.Base64
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
@@ -9,13 +10,20 @@ import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import dev.fireforge.sauron.domain.SlipParse
 import java.io.File
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import org.json.JSONArray
+import org.json.JSONObject
 
 class GemmaSlipReader(private val context: Context) {
 
     private var engine: Engine? = null
 
+    private val aiSettings = AiSettings(context)
+
     fun readSlip(imageBytes: ByteArray): SlipParse {
-        val e = ensureEngine() ?: return SlipParse.NeedsHelp(listOf(REASON_GEMMA_FAILED))
+        val e = ensureEngine() ?: return readViaGeminiApi(imageBytes)
         return try {
             e.createConversation().use { conversation ->
                 val reply = conversation.sendMessage(
@@ -29,6 +37,61 @@ class GemmaSlipReader(private val context: Context) {
             Log.w(TAG, "gemma readSlip failed", t)
             SlipParse.NeedsHelp(listOf(REASON_GEMMA_FAILED))
         }
+    }
+
+    // Temporary fallback for phones where the engine cannot load. A missing
+    // key keeps the pre-fallback behavior exactly.
+    private fun readViaGeminiApi(imageBytes: ByteArray): SlipParse {
+        val key = aiSettings.apiKey ?: return SlipParse.NeedsHelp(listOf(REASON_GEMMA_FAILED))
+        val model = aiSettings.modelId
+        Log.i(TAG, "gemma engine unavailable; falling back to gemini api model $model")
+        return try {
+            GemmaSlipJson.parse(geminiGenerate(key, model, imageBytes))
+        } catch (t: Throwable) {
+            Log.w(TAG, "gemini api readSlip failed", t)
+            SlipParse.NeedsHelp(listOf(REASON_GEMMA_FAILED))
+        }
+    }
+
+    private fun geminiGenerate(key: String, model: String, imageBytes: ByteArray): String {
+        val body = JSONObject().put(
+            "contents",
+            JSONArray().put(
+                JSONObject().put(
+                    "parts",
+                    JSONArray()
+                        .put(
+                            JSONObject().put(
+                                "inline_data",
+                                JSONObject()
+                                    .put("mime_type", "image/jpeg")
+                                    .put("data", Base64.encodeToString(imageBytes, Base64.NO_WRAP)),
+                            ),
+                        )
+                        .put(JSONObject().put("text", SLIP_PROMPT)),
+                ),
+            ),
+        )
+        val conn = URL("$GEMINI_API_BASE/models/$model:generateContent").openConnection() as HttpURLConnection
+        val reply = try {
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("x-goog-api-key", key)
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = GEMINI_CONNECT_TIMEOUT_MS
+            conn.readTimeout = GEMINI_READ_TIMEOUT_MS
+            conn.doOutput = true
+            conn.outputStream.use { it.write(body.toString().toByteArray()) }
+            val code = conn.responseCode
+            if (code !in 200..299) throw IOException("gemini api http $code")
+            conn.inputStream.use { it.readBytes().decodeToString() }
+        } finally {
+            conn.disconnect()
+        }
+        val parts = JSONObject(reply)
+            .optJSONArray("candidates")?.optJSONObject(0)
+            ?.optJSONObject("content")?.optJSONArray("parts")
+            ?: throw IOException("gemini api reply has no candidate parts")
+        return (0 until parts.length()).joinToString("") { parts.optJSONObject(it)?.optString("text").orEmpty() }
     }
 
     @Synchronized
@@ -75,6 +138,9 @@ class GemmaSlipReader(private val context: Context) {
         private const val MIN_MODEL_BYTES = 1_000_000_000L
         const val MODEL_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-gpu.litertlm"
         private const val REASON_GEMMA_FAILED = "gemma_failed"
+        private const val GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+        private const val GEMINI_CONNECT_TIMEOUT_MS = 15_000
+        private const val GEMINI_READ_TIMEOUT_MS = 120_000
 
         private val SLIP_PROMPT = """
             You are reading a Thai bank payment slip image. Reply with ONLY minified JSON, no markdown fences, no other text.
