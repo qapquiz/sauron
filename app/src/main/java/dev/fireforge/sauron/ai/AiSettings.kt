@@ -16,7 +16,7 @@ class AiSettings(context: Context) {
         set(value) = prefs.edit().putString(KEY_MODEL_ID, value.trim()).apply()
 
     companion object {
-        const val DEFAULT_MODEL_ID = "gemma-4-E2B-it"
+        const val DEFAULT_MODEL_ID = "gemma-4-26b-a4b-it"
         private const val PREFS_NAME = "ai"
         private const val KEY_API_KEY = "api_key"
         private const val KEY_MODEL_ID = "model_id"
