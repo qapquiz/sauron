@@ -20,7 +20,7 @@ class WatchedFolderTest {
                 "relative_path = ? OR relative_path LIKE ? OR " +
                 "relative_path = ? OR relative_path LIKE ? OR " +
                 "relative_path = ? OR relative_path LIKE ?" +
-                ") AND date_added > ?",
+                ") AND date_added >= ?",
             sql,
         )
         assertArrayEquals(
@@ -47,7 +47,7 @@ class WatchedFolderTest {
             watermarkSeconds = 1728600000L,
         )
         assertEquals(
-            "(_data LIKE ? OR _data LIKE ? OR _data LIKE ?) AND date_added > ?",
+            "(_data LIKE ? OR _data LIKE ? OR _data LIKE ?) AND date_added >= ?",
             sql,
         )
         assertArrayEquals(

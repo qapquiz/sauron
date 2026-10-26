@@ -163,6 +163,18 @@ A phase is done when its check passes on a device, not when the code compiles.
   reader already searches. The download verified end to end on an emulator
   on 2026-10-23.
 
+  On 2026-10-26 the Gemma stage gained a temporary Gemini API fallback. The
+  target phone cannot load the GPU build of the engine on its chipset, so its
+  decorative slips parked as unreadable. When the engine cannot load, the
+  reader now makes one call to the Gemini API with the same prompt and the
+  slip image, and parses the reply through the same JSON path, with every
+  failure parking the slip as before. The key is the user's own AI Studio
+  key, pasted into the app's AI settings screen and stored only on the
+  device, with the model id editable there too, gemma-3-27b-it by default;
+  no key set means no API call and the old behavior unchanged.
+  Slip images then leave the phone to Google, the trade the Gemini paragraph
+  in Stack choices describes.
+
 - **Phase 5, reporting.** The main screen opens with This month, one total
   per category for the current calendar month at Bangkok time, over the
   expense list, and a photo permission card appears when access is missing.

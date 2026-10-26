@@ -40,6 +40,9 @@ interface CaptureDao {
     @Query("UPDATE captures SET status = 'NO_PARSE', claimedAt = NULL, gemmaAttempts = gemmaAttempts + 1 WHERE id = :id")
     suspend fun recordGemmaFailure(id: Long)
 
+    @Query("UPDATE captures SET gemmaAttempts = 0 WHERE status IN ('NEEDS_GEMMA', 'NO_PARSE')")
+    suspend fun resetGemmaAttempts(): Int
+
     @Query("UPDATE captures SET status = 'CAPTURED', claimedAt = NULL WHERE status = 'PARSING' AND (claimedAt IS NULL OR claimedAt < :cutoff)")
     suspend fun reopenStaleClaims(cutoff: Instant): Int
 }
