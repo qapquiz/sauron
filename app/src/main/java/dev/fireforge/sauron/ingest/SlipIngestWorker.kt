@@ -71,6 +71,8 @@ class SlipIngestWorker(
             var seen = 0
             var decoded = 0
             var captures = 0
+            parsePendingCaptures(container)
+            gemmaPendingCaptures(container)
             resolver.query(
                 collection,
                 projection,
@@ -108,12 +110,11 @@ class SlipIngestWorker(
                             status = status,
                         ),
                     )
+                    prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
                 }
             }
             prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
             Log.i(TAG, "pass done: seen=$seen decoded=$decoded captures=$captures watermark=$maxSeen")
-            parsePendingCaptures(container)
-            gemmaPendingCaptures(container)
             return Result.success()
         } catch (e: Exception) {
             return Result.retry()
