@@ -162,6 +162,17 @@ A phase is done when its check passes on a device, not when the code compiles.
   device. Failed Gemma reads also cap at three attempts per capture, so
   hopeless decorative slips stop costing battery.
 
+  On 2026-10-25 the screen also reports scan state. One pure fold over the
+  WorkManager states of both ingest work names drives the indicator. While a
+  pass runs, the screen shows a progress bar, and between passes it counts
+  captures whose status is not PARSED, so parked slips are visible instead of
+  silent. The periodic worker rests ENQUEUED between ticks, so only a RUNNING
+  periodic pass counts as scanning while a one-time pass counts from ENQUEUED.
+  The photo permission card also renders in the empty state, where the old
+  layout could never show it. Verified on an emulator with fixture slips: the
+  indicator appeared mid-pass and the parked count matched the logcat pass
+  counts.
+
 Notification capture is parked. Listening to bank notifications would also
 catch spending that never produces a viewed slip, but it needs listener
 permissions, verified bank app package names, and OEM battery exceptions.
