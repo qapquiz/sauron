@@ -13,7 +13,6 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
-import android.content.SharedPreferences
 import android.provider.MediaStore
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -49,7 +48,13 @@ class SlipIngestWorker(
         val reopened = container.captureDao.reopenStaleClaims(Instant.now().minusSeconds(STALE_CLAIM_SECONDS))
         Log.i(TAG, "reopened stale claims: $reopened")
         val prefs = applicationContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
-        val watermark = firstRunWatermark(prefs)
+        if (!prefs.getBoolean(KEY_BACKFILLED, false)) {
+            prefs.edit()
+                .putLong(KEY_LAST_DATE_ADDED, 0L)
+                .putBoolean(KEY_BACKFILLED, true)
+                .apply()
+        }
+        val watermark = prefs.getLong(KEY_LAST_DATE_ADDED, 0L)
 
         val resolver = applicationContext.contentResolver
         val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -298,18 +303,12 @@ class SlipIngestWorker(
     private fun statusFor(score: SlipScore): CaptureStatus =
         if (SlipRules.isSlip(score)) CaptureStatus.CAPTURED else CaptureStatus.NEEDS_GEMMA
 
-    private fun firstRunWatermark(prefs: SharedPreferences): Long {
-        if (!prefs.contains(KEY_LAST_DATE_ADDED)) {
-            prefs.edit().putLong(KEY_LAST_DATE_ADDED, System.currentTimeMillis() / 1000).apply()
-        }
-        return prefs.getLong(KEY_LAST_DATE_ADDED, 0L)
-    }
-
     companion object {
         private const val TAG = "SlipIngest"
         const val UNIQUE_ONE_TIME_NAME = "slip-ingest-once"
         const val UNIQUE_PERIODIC_NAME = "slip-ingest-periodic"
         private const val PREFS_FILE = "ingest"
+        private const val KEY_BACKFILLED = "backfilled"
         private const val KEY_LAST_DATE_ADDED = "last_date_added"
         private const val MAX_DIMENSION = 2048
         private const val STALE_CLAIM_SECONDS = 3600L

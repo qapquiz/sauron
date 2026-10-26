@@ -107,6 +107,16 @@ A phase is done when its check passes on a device, not when the code compiles.
   for the new folders is pending. Save a slip from each of the three bank
   apps and confirm a capture row per slip.
 
+  On 2026-10-25 the first pass started importing slips already in the bank
+  folders. The ingest watermark used to stamp the install time on a fresh
+  install, which threw away every slip the bank apps had saved before the
+  app existed. A one-time backfilled flag now resets the watermark to 0 on
+  the first run after this change, so a fresh install and an upgrade both
+  import the old slips once. The first scan reads each folder from its
+  oldest slip, later passes stay incremental from the highest date added
+  seen, and the unique imageUri index drops any capture that already
+  exists, so the reset pass cannot duplicate rows.
+
 - **Phase 3, extraction.** The parser turns recognized text into an amount, a
   merchant, a datetime, and the issuing bank named on the slip, and writes an
   ExpenseEntity row per slip with screen capture provenance. Two OCR quirks

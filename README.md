@@ -66,5 +66,4 @@ app/src/main/java/dev/fireforge/sauron/
 
 - Three banks with fixed folder names. More banks arrive as their folders are discovered on real phones.
 - Screenshots are never scanned, by design.
-- Slips saved before the app was installed are not imported.
 - The Gemma model is one 2.0 GB GPU build. Odd devices cannot use the CPU file without adb.
