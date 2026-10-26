@@ -2,6 +2,7 @@ package dev.fireforge.sauron.ui
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -26,6 +27,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -105,7 +107,12 @@ class MainActivity : ComponentActivity() {
                     periodic = periodicWorkInfos.map { it.state },
                     parked = parkedCount,
                 )
-                ExpenseScreen(expenses, totals, status, hasImagePermission, requestImagePermission) {
+                ExpenseScreen(
+                    expenses, totals, status, hasImagePermission, requestImagePermission,
+                    onOpenSettings = {
+                        startActivity(Intent(applicationContext, SettingsActivity::class.java))
+                    },
+                ) {
                     if (!modelReady) {
                         ModelDownloadCard(downloadInfo, downloadModel)
                     }
@@ -145,6 +152,7 @@ fun ExpenseScreen(
     status: ScanStatus,
     hasImagePermission: Boolean,
     onRequestImagePermission: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     modelCard: @Composable () -> Unit,
 ) {
     Surface(
@@ -154,6 +162,11 @@ fun ExpenseScreen(
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onOpenSettings) {
+                    Text("Settings")
+                }
+            }
             modelCard()
             if (!hasImagePermission) {
                 PermissionBanner(onRequestImagePermission)
