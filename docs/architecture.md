@@ -168,10 +168,10 @@ A phase is done when its check passes on a device, not when the code compiles.
   decorative slips parked as unreadable. When the engine cannot load, the
   reader now makes one call to the Gemini API with the same prompt and the
   slip image, and parses the reply through the same JSON path, with every
-  failure parking the slip as before. The key is a gemini.txt file in the
-  app's files directory, installed over adb, whose first line is the AI
-  Studio key and whose optional second line is the model id, gemma-3-27b-it
-  by default; no key file means no API call and the old behavior unchanged.
+  failure parking the slip as before. The key is the user's own AI Studio
+  key, pasted into the app's AI settings screen and stored only on the
+  device, with the model id editable there too, gemma-3-27b-it by default;
+  no key set means no API call and the old behavior unchanged.
   Slip images then leave the phone to Google, the trade the Gemini paragraph
   in Stack choices describes.
 

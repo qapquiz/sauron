@@ -20,6 +20,8 @@ class GemmaSlipReader(private val context: Context) {
 
     private var engine: Engine? = null
 
+    private val aiSettings = AiSettings(context)
+
     fun readSlip(imageBytes: ByteArray): SlipParse {
         val e = ensureEngine() ?: return readViaGeminiApi(imageBytes)
         return try {
@@ -37,13 +39,11 @@ class GemmaSlipReader(private val context: Context) {
         }
     }
 
-    // Temporary fallback for phones where the engine cannot load. A missing or
-    // empty key file keeps the pre-fallback behavior exactly.
+    // Temporary fallback for phones where the engine cannot load. A missing
+    // key keeps the pre-fallback behavior exactly.
     private fun readViaGeminiApi(imageBytes: ByteArray): SlipParse {
-        val lines = runCatching { File(context.filesDir, KEY_FILE).readLines() }.getOrNull().orEmpty()
-        val key = lines.firstOrNull()?.trim().orEmpty()
-        if (key.isEmpty()) return SlipParse.NeedsHelp(listOf(REASON_GEMMA_FAILED))
-        val model = lines.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() } ?: GEMINI_DEFAULT_MODEL
+        val key = aiSettings.apiKey ?: return SlipParse.NeedsHelp(listOf(REASON_GEMMA_FAILED))
+        val model = aiSettings.modelId
         Log.i(TAG, "gemma engine unavailable; falling back to gemini api model $model")
         return try {
             GemmaSlipJson.parse(geminiGenerate(key, model, imageBytes))
@@ -138,8 +138,6 @@ class GemmaSlipReader(private val context: Context) {
         private const val MIN_MODEL_BYTES = 1_000_000_000L
         const val MODEL_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-gpu.litertlm"
         private const val REASON_GEMMA_FAILED = "gemma_failed"
-        private const val KEY_FILE = "gemini.txt"
-        private const val GEMINI_DEFAULT_MODEL = "gemma-3-27b-it"
         private const val GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
         private const val GEMINI_CONNECT_TIMEOUT_MS = 15_000
         private const val GEMINI_READ_TIMEOUT_MS = 120_000
