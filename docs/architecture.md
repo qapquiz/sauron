@@ -161,7 +161,10 @@ A phase is done when its check passes on a device, not when the code compiles.
   GPU file from the litert-community release over an unmetered network,
   runs as a dataSync foreground service, and writes it to the location the
   reader already searches. The download verified end to end on an emulator
-  on 2026-10-23.
+  on 2026-10-23. A Later action parks the card until the next app start, so
+  the download can wait for a WiFi moment the user chooses; the app works
+  without the model, and decorative slips park as unreadable until it is
+  present.
 
   On 2026-10-26 the Gemma stage gained a temporary Gemini API fallback. The
   target phone cannot load the GPU build of the engine on its chipset, so its
