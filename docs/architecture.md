@@ -200,5 +200,17 @@ catch spending that never produces a viewed slip, but it needs listener
 permissions, verified bank app package names, and OEM battery exceptions.
 Revisit only after the storage pipeline is complete.
 
+On 2026-11-05 the screens received a deliberate design pass. The palette is
+the four DMG-01 Game Boy screen colors (#9BBC0F, #8BAC0F, #306230, #0F380F),
+and every color in the scheme is one of the four or a blend of two, so the
+app reads as one green LCD. Corners are square, set per component: this
+material3 artifact keeps every Shapes constructor internal, so the theme
+cannot override shapes globally. Money renders with tabular figures so
+amount columns align, and the main screen opens on a month-total hero with
+24-block share bars per category. The system font stays because bundled
+display fonts do not carry Thai glyphs and merchant names are Thai. The
+settings screen gained a back affordance and a themed background; it had
+been rendering on the system window color.
+
 The app icon and the brand assets are deferred. The GitHub remote and CI
 have existed since October 2026.

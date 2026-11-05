@@ -10,19 +10,28 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -37,7 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.work.BackoffPolicy
@@ -59,7 +69,19 @@ import dev.fireforge.sauron.ingest.SlipIngestWorker
 import dev.fireforge.sauron.ingest.scanStatus
 import java.time.Instant
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
+
+private val Bangkok = ZoneOffset.ofHours(7)
+
+private val ExpenseDateFormat = DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.ENGLISH)
+
+private fun MonthHeaderLabel(from: Instant): String =
+    DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH).format(from.atZone(Bangkok))
+
+private fun formatOccurred(at: Instant): String = ExpenseDateFormat.format(at.atZone(Bangkok))
 
 class MainActivity : ComponentActivity() {
 
@@ -67,7 +89,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val container = (application as SauronApplication).container
         val expenseDao = container.expenseDao
-        val window = MonthWindow.current(Instant.now(), ZoneOffset.ofHours(7))
+        val window = MonthWindow.current(Instant.now(), Bangkok)
         setContent {
             SauronTheme {
                 val (hasImagePermission, requestImagePermission) = rememberImagePermission(applicationContext)
@@ -109,6 +131,7 @@ class MainActivity : ComponentActivity() {
                 )
                 ExpenseScreen(
                     expenses, totals, status, hasImagePermission, requestImagePermission,
+                    monthLabel = MonthHeaderLabel(window.from),
                     onOpenSettings = {
                         startActivity(Intent(applicationContext, SettingsActivity::class.java))
                     },
@@ -152,6 +175,7 @@ fun ExpenseScreen(
     status: ScanStatus,
     hasImagePermission: Boolean,
     onRequestImagePermission: () -> Unit,
+    monthLabel: String,
     onOpenSettings: () -> Unit = {},
     modelCard: @Composable () -> Unit,
 ) {
@@ -162,33 +186,73 @@ fun ExpenseScreen(
         color = MaterialTheme.colorScheme.background,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onOpenSettings) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "SAURON",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onOpenSettings, shape = RectangleShape) {
                     Text("Settings")
                 }
             }
             modelCard()
-            if (!hasImagePermission) {
+            AnimatedVisibility(
+                visible = !hasImagePermission,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
                 PermissionBanner(onRequestImagePermission)
             }
-            ScanIndicator(status)
+            AnimatedVisibility(
+                visible = status != ScanStatus.Idle,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                ScanIndicator(status)
+            }
             if (expenses.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No expenses yet")
-                }
-            } else {
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         Text(
-                            "This month",
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
-                            fontWeight = FontWeight.SemiBold,
+                            "No expenses yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                        )
+                        Text(
+                            "Save a slip in K PLUS, SCB EASY, or CLICX. " +
+                                "It becomes an expense here within 15 minutes.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
                         )
                     }
+                }
+            } else {
+                val grandTotal = totals.fold(0L) { acc, total -> acc + total.totalMinor }
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                ) {
+                    item { MonthHeader(monthLabel, grandTotal) }
                     items(totals) { total ->
-                        CategoryTotalRow(total)
+                        CategoryTotalRow(total, grandTotal)
                     }
-                    item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
+                    item { SectionLabel("All expenses") }
                     items(expenses) { expense ->
                         ExpenseRow(expense)
                     }
@@ -199,22 +263,109 @@ fun ExpenseScreen(
 }
 
 @Composable
+private fun MonthHeader(monthLabel: String, grandTotalMinor: Long) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            "This month · $monthLabel",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            Money(grandTotalMinor, Currency.THB).display(),
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+    }
+}
+
+@Composable
+private fun CategoryTotalRow(total: CategoryTotal, grandTotalMinor: Long) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(total.name, style = MaterialTheme.typography.bodyLarge)
+            Text(Money(total.totalMinor, Currency.THB).display(), style = MaterialTheme.typography.bodyLarge)
+        }
+        val fraction = if (grandTotalMinor > 0) {
+            (total.totalMinor.toFloat() / grandTotalMinor).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        SegmentedBar(fraction)
+    }
+}
+
+/** A 24-block HP-style share bar, filled proportionally to the category total. */
+@Composable
+private fun SegmentedBar(fraction: Float, modifier: Modifier = Modifier) {
+    val blocks = 24
+    val filled = (fraction * blocks).roundToInt()
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        repeat(blocks) { block ->
+            val lit = block < filled
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(8.dp)
+                    .background(
+                        if (lit) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(label: String) {
+    Text(
+        label,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
 private fun ScanIndicator(status: ScanStatus) {
     when (status) {
         ScanStatus.Working -> Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            Text("Scanning slips")
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth(),
+                strokeCap = StrokeCap.Square,
+            )
+            Text(
+                "Scanning slips",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         is ScanStatus.Parked -> Text(
             "${status.count} slips waiting to be read",
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         ScanStatus.Idle -> Unit
     }
@@ -225,22 +376,37 @@ private fun ModelDownloadCard(downloadInfo: WorkInfo?, onDownload: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RectangleShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Gemma model for slip reading")
+            Text(
+                "Gemma model for slip reading",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                "Reads decorative slips on device. One 2.0 GB download over WiFi only.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (downloadInfo?.state == WorkInfo.State.RUNNING) {
+                val percent = downloadInfo.progress.getInt(ModelDownloadWorker.PROGRESS_PERCENT, 0)
                 LinearProgressIndicator(
-                    progress = {
-                        downloadInfo.progress.getInt(ModelDownloadWorker.PROGRESS_PERCENT, 0) / 100f
-                    },
+                    progress = { percent / 100f },
                     modifier = Modifier.fillMaxWidth(),
+                    strokeCap = StrokeCap.Square,
+                )
+                Text(
+                    "$percent%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                Button(onClick = onDownload) {
+                Button(onClick = onDownload, shape = RectangleShape) {
                     Text("Download model (2.0 GB, WiFi)")
                 }
             }
@@ -249,31 +415,23 @@ private fun ModelDownloadCard(downloadInfo: WorkInfo?, onDownload: () -> Unit) {
 }
 
 @Composable
-private fun CategoryTotalRow(total: CategoryTotal) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(total.name)
-        Text(Money(total.totalMinor, Currency.THB).display())
-    }
-}
-
-@Composable
 private fun PermissionBanner(onRequestImagePermission: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RectangleShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("อนุญาตให้ Sauron เข้าถึงรูปภาพเพื่ออ่านสลิป")
-            Button(onClick = onRequestImagePermission) {
+            Text(
+                "อนุญาตให้ Sauron เข้าถึงรูปภาพเพื่ออ่านสลิป",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(onClick = onRequestImagePermission, shape = RectangleShape) {
                 Text("อนุญาต")
             }
         }
@@ -288,10 +446,17 @@ private fun ExpenseRow(expense: ExpenseWithCategory) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column {
-            Text(expense.expense.merchant, fontWeight = FontWeight.SemiBold)
-            Text(expense.category.name, style = MaterialTheme.typography.bodySmall)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(expense.expense.merchant, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "${expense.category.name} · ${formatOccurred(expense.expense.occurredAt)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Text(Money(expense.expense.amountMinor, expense.expense.currency).display())
+        Text(
+            Money(expense.expense.amountMinor, expense.expense.currency).display(),
+            style = MaterialTheme.typography.titleMedium,
+        )
     }
 }
