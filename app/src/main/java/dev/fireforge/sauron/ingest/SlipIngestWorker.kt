@@ -20,6 +20,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.googlecode.tesseract.android.TessBaseAPI
 import dev.fireforge.sauron.SauronApplication
+import dev.fireforge.sauron.ai.AiSettings
 import androidx.room.withTransaction
 import java.io.File
 import dev.fireforge.sauron.data.AppContainer
@@ -71,6 +72,8 @@ class SlipIngestWorker(
             var seen = 0
             var decoded = 0
             var captures = 0
+            parsePendingCaptures(container)
+            gemmaPendingCaptures(container)
             resolver.query(
                 collection,
                 projection,
@@ -108,14 +111,14 @@ class SlipIngestWorker(
                             status = status,
                         ),
                     )
+                    prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
                 }
             }
             prefs.edit().putLong(KEY_LAST_DATE_ADDED, maxSeen).apply()
             Log.i(TAG, "pass done: seen=$seen decoded=$decoded captures=$captures watermark=$maxSeen")
-            parsePendingCaptures(container)
-            gemmaPendingCaptures(container)
             return Result.success()
         } catch (e: Exception) {
+            Log.e(TAG, "ingest pass failed; retrying", e)
             return Result.retry()
         }
     }
@@ -162,9 +165,16 @@ class SlipIngestWorker(
     }
 
     private suspend fun gemmaPendingCaptures(container: AppContainer) {
-        if (!container.gemmaSlipReader.hasModel()) {
+        val aiSettings = AiSettings(applicationContext)
+        val apiActive = aiSettings.apiKey != null
+        if (!container.gemmaSlipReader.hasModel() && !apiActive) {
             Log.i(TAG, "gemma skipped: no model")
             return
+        }
+        if (apiActive && !aiSettings.attemptsResetForApi) {
+            val reset = container.captureDao.resetGemmaAttempts()
+            aiSettings.attemptsResetForApi = true
+            Log.i(TAG, "api fallback active; reset gemma attempts on $reset parked captures")
         }
         val otherId = container.categoryDao.otherCategoryId()
         if (otherId == null) {

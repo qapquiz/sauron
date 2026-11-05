@@ -31,7 +31,7 @@ class SauronApplication : Application() {
         val workManager = WorkManager.getInstance(this)
         workManager.enqueueUniqueWork(
             SlipIngestWorker.UNIQUE_ONE_TIME_NAME,
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<SlipIngestWorker>().build(),
         )
         workManager.enqueueUniquePeriodicWork(

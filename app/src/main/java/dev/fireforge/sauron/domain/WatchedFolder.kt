@@ -16,7 +16,7 @@ enum class WatchedFolder(val relativePath: String, val bank: Bank) {
             watermarkSeconds: Long,
         ): Pair<String, Array<String>> {
             val clauses = entries.flatMap { exactOrSubtreeClauses(it, relativePathColumn, dataColumn, useRelativePath) }
-            val sql = "(${clauses.joinToString(" OR ") { it.first }}) AND $dateAddedColumn > ?"
+            val sql = "(${clauses.joinToString(" OR ") { it.first }}) AND $dateAddedColumn >= ?"
             val args = (clauses.map { it.second } + watermarkSeconds.toString()).toTypedArray()
             return sql to args
         }
