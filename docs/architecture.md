@@ -161,7 +161,10 @@ A phase is done when its check passes on a device, not when the code compiles.
   GPU file from the litert-community release over an unmetered network,
   runs as a dataSync foreground service, and writes it to the location the
   reader already searches. The download verified end to end on an emulator
-  on 2026-10-23.
+  on 2026-10-23. A Later action parks the card until the next app start, so
+  the download can wait for a WiFi moment the user chooses; the app works
+  without the model, and decorative slips park as unreadable until it is
+  present.
 
   On 2026-10-26 the Gemma stage gained a temporary Gemini API fallback. The
   target phone cannot load the GPU build of the engine on its chipset, so its
@@ -199,6 +202,18 @@ Notification capture is parked. Listening to bank notifications would also
 catch spending that never produces a viewed slip, but it needs listener
 permissions, verified bank app package names, and OEM battery exceptions.
 Revisit only after the storage pipeline is complete.
+
+On 2026-11-05 the screens received a deliberate design pass. The palette is
+the four DMG-01 Game Boy screen colors (#9BBC0F, #8BAC0F, #306230, #0F380F),
+and every color in the scheme is one of the four or a blend of two, so the
+app reads as one green LCD. Corners are square, set per component: this
+material3 artifact keeps every Shapes constructor internal, so the theme
+cannot override shapes globally. Money renders with tabular figures so
+amount columns align, and the main screen opens on a month-total hero with
+24-block share bars per category. The system font stays because bundled
+display fonts do not carry Thai glyphs and merchant names are Thai. The
+settings screen gained a back affordance and a themed background; it had
+been rendering on the system window color.
 
 The app icon and the brand assets are deferred. The GitHub remote and CI
 have existed since October 2026.
