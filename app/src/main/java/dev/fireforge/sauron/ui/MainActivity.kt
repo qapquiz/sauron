@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,6 +103,8 @@ class MainActivity : ComponentActivity() {
                     it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED
                 } ?: workInfos.lastOrNull()
                 var modelReady by remember { mutableStateOf(container.gemmaSlipReader.hasModel()) }
+                // Session-scoped: "Later" parks the card until the next app start.
+                var modelDownloadDeferred by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(downloadInfo?.state) {
                     if (downloadInfo?.state == WorkInfo.State.SUCCEEDED) {
                         modelReady = container.gemmaSlipReader.hasModel()
@@ -136,8 +139,12 @@ class MainActivity : ComponentActivity() {
                         startActivity(Intent(applicationContext, SettingsActivity::class.java))
                     },
                 ) {
-                    if (!modelReady) {
-                        ModelDownloadCard(downloadInfo, downloadModel)
+                    if (!modelReady && !modelDownloadDeferred) {
+                        ModelDownloadCard(
+                            downloadInfo,
+                            onDownload = downloadModel,
+                            onDefer = { modelDownloadDeferred = true },
+                        )
                     }
                 }
             }
@@ -372,7 +379,11 @@ private fun ScanIndicator(status: ScanStatus) {
 }
 
 @Composable
-private fun ModelDownloadCard(downloadInfo: WorkInfo?, onDownload: () -> Unit) {
+private fun ModelDownloadCard(
+    downloadInfo: WorkInfo?,
+    onDownload: () -> Unit,
+    onDefer: () -> Unit,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -406,8 +417,13 @@ private fun ModelDownloadCard(downloadInfo: WorkInfo?, onDownload: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                Button(onClick = onDownload, shape = RectangleShape) {
-                    Text("Download model (2.0 GB, WiFi)")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onDownload, shape = RectangleShape) {
+                        Text("Download model")
+                    }
+                    TextButton(onClick = onDefer, shape = RectangleShape) {
+                        Text("Later")
+                    }
                 }
             }
         }
